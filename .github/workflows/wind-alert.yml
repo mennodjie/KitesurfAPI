@@ -3,7 +3,13 @@ name: Wind alert
 on:
   schedule:
     - cron: "0 */3 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      test_notification:
+        description: "Send one synthetic test alert instead of checking real forecasts"
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   check:
@@ -31,6 +37,7 @@ jobs:
           ALERT_SCORE_THRESHOLD: "75"
           ALERT_WITHIN_DAYS: "3"
           ALERT_MIN_HOURS: "3"
+          TEST_NOTIFICATION: ${{ inputs.test_notification }}
 
       - name: Commit updated alert state
         run: |

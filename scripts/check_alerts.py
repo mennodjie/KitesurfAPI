@@ -38,7 +38,38 @@ def save_state(notified: set) -> None:
     STATE_PATH.write_text(json.dumps({"notified": sorted(notified)}, indent=2) + "\n")
 
 
+def send_test_notification() -> None:
+    """Sends one synthetic alert through both channels -- ignores real forecast data and dedupe state."""
+    now = pd.Timestamp.now()
+    alert = {
+        "key": "test|" + now.isoformat(),
+        "spot_id": "test",
+        "spot_name": "Test spot",
+        "start": now,
+        "end": now + pd.Timedelta(hours=3),
+        "peak_score": 99,
+        "wind_kn": 22,
+        "dir_deg": 270,
+        "hours": 3,
+    }
+    if not NTFY_TOPIC and not email_configured():
+        print("Neither NTFY_TOPIC nor SMTP_*/NOTIFICATION_* are configured -- nothing to send.")
+        return
+
+    if NTFY_TOPIC:
+        print("Sending test push via ntfy...")
+        send_ntfy(alert)
+    if email_configured():
+        print("Sending test email digest...")
+        send_email_digest([alert])
+    print("Done. Check your phone/inbox. This did not touch data/alert_state.json.")
+
+
 async def main() -> None:
+    if os.environ.get("TEST_NOTIFICATION", "").lower() in ("1", "true", "yes"):
+        send_test_notification()
+        return
+
     forecasts = await get_forecasts(SPOTS, use_cache=False)
     windows_by_spot = {}
     for spot in SPOTS:
