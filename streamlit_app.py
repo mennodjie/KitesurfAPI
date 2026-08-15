@@ -106,11 +106,11 @@ st.markdown(
     """
     <div class="kite-hero">
         <h1>🪁 Noord-Holland Kitesurf Forecast</h1>
-        <p>Jouw eigen wind-scout voor de komende 3 dagen. Wij vergelijken vier weermodellen zodat jij niet steeds vijf apps hoeft te checken.</p>
+        <p>Jouw eigen wind-scout voor de komende week. Wij vergelijken vier weermodellen zodat jij niet steeds vijf apps hoeft te checken.</p>
         <div class="kite-kpis">
             <div class="kite-kpi">📍 6 spots</div>
             <div class="kite-kpi">🛰️ 4 modellen (ECMWF · GFS · ICON · KNMI)</div>
-            <div class="kite-kpi">⏱️ 72 uur vooruit</div>
+            <div class="kite-kpi">⏱️ 7 dagen vooruit</div>
         </div>
     </div>
     """,

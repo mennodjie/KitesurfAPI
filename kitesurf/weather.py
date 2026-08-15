@@ -21,7 +21,7 @@ MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
 DEFAULT_MODELS = ["ecmwf_ifs025", "gfs_seamless", "icon_seamless", "knmi_harmonie_arome_europe"]
 MODELS = [m.strip() for m in os.environ.get("WEATHER_MODELS", ",".join(DEFAULT_MODELS)).split(",") if m.strip()]
 
-FORECAST_DAYS = 3
+FORECAST_DAYS = 7
 CACHE_TTL_SECONDS = 15 * 60
 _CONCURRENCY = asyncio.Semaphore(4)
 
