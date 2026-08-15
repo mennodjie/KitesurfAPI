@@ -16,6 +16,8 @@ from kitesurf.spots import SPOTS, SPOTS_BY_ID
 from kitesurf.weather import CACHE_TTL_SECONDS, get_forecasts
 from kitesurf.windows import compute_good_windows
 
+SPOTS_BY_NAME = {s.name: s for s in SPOTS}
+
 st.set_page_config(page_title="NH Kitesurf", page_icon="🪁", layout="wide")
 
 # Reload the tab once the forecast cache would expire anyway, so an open tab
@@ -98,16 +100,16 @@ st.markdown(
         border-left: 4px solid #0f766e; padding-left: 10px;
     }
 
-    .spot-card, .day-card {
+    .day-card {
         border: 1px solid rgba(128,128,128,0.25); border-radius: 10px; padding: 12px 14px;
         background: var(--secondary-background-color); height: 100%;
     }
-    .spot-card h4 { margin: 0 0 8px 0; font-size: 0.98rem; font-weight: 700; }
     .spot-tag {
         font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase;
         letter-spacing: 0.04em; margin-left: 6px;
     }
-    .day-col { text-align: center; padding: 6px 2px; flex: 1; }
+    .day-strip { display: flex; gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }
+    .day-col { text-align: center; padding: 6px 6px; flex: 0 0 auto; min-width: 84px; }
     .day-label { font-size: 0.68rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; }
     .day-meta { font-size: 0.7rem; color: #64748b; margin-top: 4px; }
 
@@ -311,176 +313,201 @@ st.divider()
 # ---------------------------------------------------------------------------
 # 2. Alle spots, komende dagen (grid overview, exact dates)
 # ---------------------------------------------------------------------------
-grid_days = unique_days[:3]
-st.markdown('<div class="section-title">Alle spots — komende dagen</div>', unsafe_allow_html=True)
+grid_days = unique_days
+st.markdown(f'<div class="section-title">Alle spots — komende {len(grid_days)} dagen</div>', unsafe_allow_html=True)
 st.caption(
     f"Beste {GOOD_WINDOW_MIN_HOURS}+ uur venster per dag, per spot. 0 betekent: geen aaneengesloten venster van "
-    f"{GOOD_WINDOW_MIN_HOURS}+ uur boven score {min_score} die dag."
+    f"{GOOD_WINDOW_MIN_HOURS}+ uur boven score {min_score} die dag. Swipe zijwaarts voor meer dagen, of klik "
+    "'Bekijk' voor het volledige overzicht van een spot."
 )
 
-grid_cols = st.columns(2)
-for i, spot in enumerate(SPOTS):
+
+def _select_spot(spot_name: str) -> None:
+    st.session_state["spot_selector"] = spot_name
+    st.session_state["scroll_to_spot"] = True
+
+
+for spot in SPOTS:
     windows = windows_by_spot[spot.id]
-    with grid_cols[i % 2]:
-        card_html = (
-            f'<div class="spot-card"><h4>{spot.name} '
-            f'<span class="spot-tag">{WATER_LABEL[spot.is_coastal]} &middot; {spot.water_body}</span></h4>'
+    with st.container(border=True):
+        st.markdown(
+            f'<div style="display:flex;justify-content:space-between;align-items:baseline;">'
+            f'<span style="font-weight:700;font-size:1rem;">{spot.name}</span>'
+            f'<span class="spot-tag">{WATER_LABEL[spot.is_coastal]} &middot; {spot.water_body}</span></div>',
+            unsafe_allow_html=True,
         )
-        card_html += '<div style="display:flex;">'
+        strip_html = '<div class="day-strip">'
         for d in grid_days:
             day_windows = windows[windows["start"].dt.date == d] if not windows.empty else windows
             if windows.empty or day_windows.empty:
-                card_html += (
+                strip_html += (
                     f'<div class="day-col"><div class="day-label">{fmt_day(d)}</div>'
                     f'<div style="margin-top:6px;">{score_pill(0)}</div>'
-                    f'<div class="day-meta">geen {GOOD_WINDOW_MIN_HOURS}u+ venster</div></div>'
+                    f'<div class="day-meta">geen {GOOD_WINDOW_MIN_HOURS}u+</div></div>'
                 )
                 continue
             best = day_windows.loc[day_windows["peak_score"].idxmax()]
-            card_html += (
+            strip_html += (
                 f'<div class="day-col"><div class="day-label">{fmt_day(d)}</div>'
                 f'<div style="margin-top:6px;">{score_pill(best["peak_score"])}</div>'
                 f'<div class="day-meta">{fmt_range(best["start"], best["end"])}<br>{best["wind_kn"]:.0f}kn {compass(best["dir_deg"])}</div>'
                 f"</div>"
             )
-        card_html += "</div></div>"
-        st.markdown(card_html, unsafe_allow_html=True)
-        st.write("")
+        strip_html += "</div>"
+        st.markdown(strip_html, unsafe_allow_html=True)
+        st.button(
+            f"Bekijk {spot.name} →",
+            key=f"open_{spot.id}",
+            use_container_width=True,
+            on_click=_select_spot,
+            args=(spot.name,),
+        )
 
 st.divider()
 
 # ---------------------------------------------------------------------------
 # 3. Per spot detail
 # ---------------------------------------------------------------------------
+st.markdown('<div id="per-spot-section"></div>', unsafe_allow_html=True)
 st.markdown('<div class="section-title">Per spot</div>', unsafe_allow_html=True)
 st.write("")
-tabs = st.tabs([s.name for s in SPOTS])
-for tab, spot in zip(tabs, SPOTS):
-    with tab:
-        spot_df = view[view["spot_id"] == spot.id].sort_values("time")
-        if spot_df.empty:
-            st.info("Geen uren binnen het geselecteerde filter.")
-            continue
 
-        windows = windows_by_spot[spot.id]
+if st.session_state.get("scroll_to_spot"):
+    st.session_state["scroll_to_spot"] = False
+    components.html(
+        "<script>setTimeout(() => { const el = window.parent.document.getElementById('per-spot-section'); "
+        "if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'}); }, 100);</script>",
+        height=0,
+    )
 
-        hero_col, metrics_col = st.columns([0.4, 0.6])
-        with hero_col:
-            if windows.empty:
+spot_name_options = [s.name for s in SPOTS]
+st.session_state.setdefault("spot_selector", spot_name_options[0])
+chosen_name = st.segmented_control("Kies een spot", spot_name_options, key="spot_selector")
+spot = SPOTS_BY_NAME.get(chosen_name, SPOTS[0])
+
+spot_df = view[view["spot_id"] == spot.id].sort_values("time")
+if spot_df.empty:
+    st.info("Geen uren binnen het geselecteerde filter.")
+else:
+    windows = windows_by_spot[spot.id]
+
+    hero_col, metrics_col = st.columns([0.4, 0.6])
+    with hero_col:
+        if windows.empty:
+            st.markdown(
+                f"""
+                <div class="hero-stat" style="--accent-color:{TIER_COLORS['NIKS']};">
+                    <div class="tierlabel" style="color:{TIER_COLORS['NIKS']};">NIKS</div>
+                    <div class="num">–</div>
+                    <div class="sub">Geen venster van {GOOD_WINDOW_MIN_HOURS}+ uur boven score {min_score} deze week.</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            best = windows.loc[windows["peak_score"].idxmax()]
+            s = score_style(best["peak_score"])
+            st.markdown(
+                f"""
+                <div class="hero-stat" style="--accent-color:{s['color']};">
+                    <div class="tierlabel" style="color:{s['color']};">{s['tier']}</div>
+                    <div class="num">{best['peak_score']:.0f}</div>
+                    <div class="sub">{fmt_day(best['start'].date())} &middot; {fmt_range(best['start'], best['end'])}</div>
+                    <div class="sub">{best['wind_kn']:.0f} kn &middot; {compass(best['dir_deg'])} &middot; {best['hours']:.0f}u aaneengesloten</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+    with metrics_col:
+        c1, c2 = st.columns(2)
+        c1.metric(f"Goede vensters (≥{GOOD_WINDOW_MIN_HOURS}u)", len(windows))
+        good_hours = int(windows["hours"].sum()) if not windows.empty else 0
+        c2.metric("Totaal goede uren", good_hours, "deze week")
+
+    metric_choice = st.segmented_control("Toon op de grafiek", list(METRIC_OPTIONS.keys()), default="Score", key=f"metric_{spot.id}")
+    metric_col, metric_title = METRIC_OPTIONS.get(metric_choice, METRIC_OPTIONS["Score"])
+
+    chart_df = spot_df[["time", metric_col]].rename(columns={metric_col: "value"})
+    base = alt.Chart(chart_df).encode(
+        x=alt.X("time:T", title=None, axis=alt.Axis(format="%a %d/%m %Hu", labelAngle=-40)),
+    )
+    area = base.mark_area(opacity=0.18, color="#0f766e").encode(y=alt.Y("value:Q", title=metric_title))
+    line = base.mark_line(color="#0f766e", strokeWidth=2).encode(y=alt.Y("value:Q", title=metric_title))
+    layers = [area, line]
+    if not windows.empty:
+        band_df = windows.rename(columns={"start": "start", "end": "end"})
+        band = alt.Chart(band_df).mark_rect(color="#0f766e", opacity=0.15).encode(x="start:T", x2="end:T")
+        layers = [band] + layers
+    st.altair_chart(alt.layer(*layers).properties(height=260), use_container_width=True)
+    st.caption("Gemarkeerde band = aaneengesloten goed venster.")
+
+    st.markdown("**Dagoverzicht**")
+    day_cols = st.columns(len(unique_days))
+    for col, d in zip(day_cols, unique_days):
+        day_windows = windows[windows["start"].dt.date == d] if not windows.empty else windows
+        with col:
+            if windows.empty or day_windows.empty:
                 st.markdown(
                     f"""
-                    <div class="hero-stat" style="--accent-color:{TIER_COLORS['NIKS']};">
-                        <div class="tierlabel" style="color:{TIER_COLORS['NIKS']};">NIKS</div>
-                        <div class="num">–</div>
-                        <div class="sub">Geen venster van {GOOD_WINDOW_MIN_HOURS}+ uur boven score {min_score} deze week.</div>
+                    <div class="day-card" style="--accent-color:{TIER_COLORS['NIKS']};">
+                        <div class="dow">{fmt_day(d)}</div>
+                        <div class="num">0</div>
+                        <div class="sub">geen venster</div>
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
             else:
-                best = windows.loc[windows["peak_score"].idxmax()]
-                s = score_style(best["peak_score"])
+                best_day = day_windows.loc[day_windows["peak_score"].idxmax()]
+                s = score_style(best_day["peak_score"])
                 st.markdown(
                     f"""
-                    <div class="hero-stat" style="--accent-color:{s['color']};">
-                        <div class="tierlabel" style="color:{s['color']};">{s['tier']}</div>
-                        <div class="num">{best['peak_score']:.0f}</div>
-                        <div class="sub">{fmt_day(best['start'].date())} &middot; {fmt_range(best['start'], best['end'])}</div>
-                        <div class="sub">{best['wind_kn']:.0f} kn &middot; {compass(best['dir_deg'])} &middot; {best['hours']:.0f}u aaneengesloten</div>
+                    <div class="day-card" style="--accent-color:{s['color']};">
+                        <div class="dow">{fmt_day(d)}</div>
+                        <div class="num">{best_day['peak_score']:.0f}</div>
+                        <div class="sub">{fmt_range(best_day['start'], best_day['end'])}</div>
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
-        with metrics_col:
-            c1, c2 = st.columns(2)
-            c1.metric(f"Goede vensters (≥{GOOD_WINDOW_MIN_HOURS}u)", len(windows))
-            good_hours = int(windows["hours"].sum()) if not windows.empty else 0
-            c2.metric("Totaal goede uren", good_hours, "deze week")
 
-        metric_choice = st.segmented_control("Toon op de grafiek", list(METRIC_OPTIONS.keys()), default="Score", key=f"metric_{spot.id}")
-        metric_col, metric_title = METRIC_OPTIONS.get(metric_choice, METRIC_OPTIONS["Score"])
-
-        chart_df = spot_df[["time", metric_col]].rename(columns={metric_col: "value"})
-        base = alt.Chart(chart_df).encode(
-            x=alt.X("time:T", title=None, axis=alt.Axis(format="%a %d/%m %Hu", labelAngle=-40)),
-        )
-        area = base.mark_area(opacity=0.18, color="#0f766e").encode(y=alt.Y("value:Q", title=metric_title))
-        line = base.mark_line(color="#0f766e", strokeWidth=2).encode(y=alt.Y("value:Q", title=metric_title))
-        layers = [area, line]
-        if not windows.empty:
-            band_df = windows.rename(columns={"start": "start", "end": "end"})
-            band = alt.Chart(band_df).mark_rect(color="#0f766e", opacity=0.15).encode(x="start:T", x2="end:T")
-            layers = [band] + layers
-        st.altair_chart(alt.layer(*layers).properties(height=260), use_container_width=True)
-        st.caption("Gemarkeerde band = aaneengesloten goed venster.")
-
-        st.markdown("**Dagoverzicht**")
-        day_cols = st.columns(len(unique_days))
-        for col, d in zip(day_cols, unique_days):
-            day_windows = windows[windows["start"].dt.date == d] if not windows.empty else windows
-            with col:
-                if windows.empty or day_windows.empty:
-                    st.markdown(
-                        f"""
-                        <div class="day-card" style="--accent-color:{TIER_COLORS['NIKS']};">
-                            <div class="dow">{fmt_day(d)}</div>
-                            <div class="num">0</div>
-                            <div class="sub">geen venster</div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    best_day = day_windows.loc[day_windows["peak_score"].idxmax()]
-                    s = score_style(best_day["peak_score"])
-                    st.markdown(
-                        f"""
-                        <div class="day-card" style="--accent-color:{s['color']};">
-                            <div class="dow">{fmt_day(d)}</div>
-                            <div class="num">{best_day['peak_score']:.0f}</div>
-                            <div class="sub">{fmt_range(best_day['start'], best_day['end'])}</div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-
-        if not windows.empty:
-            with st.expander("Goede vensters deze week", expanded=False):
-                table = windows.copy()
-                table["dag"] = table["start"].apply(lambda t: fmt_day(t.date()))
-                table["venster"] = table.apply(lambda r: fmt_range(r["start"], r["end"]), axis=1)
-                table["richting"] = table["dir_deg"].apply(compass)
-                st.dataframe(
-                    table[["dag", "venster", "hours", "peak_score", "avg_score", "wind_kn", "richting"]],
-                    column_config={
-                        "dag": "Dag",
-                        "venster": "Venster",
-                        "hours": st.column_config.NumberColumn("Duur (u)", format="%d"),
-                        "peak_score": st.column_config.ProgressColumn("Piekscore", min_value=0, max_value=100, format="%.0f"),
-                        "avg_score": st.column_config.NumberColumn("Gem. score", format="%.0f"),
-                        "wind_kn": st.column_config.NumberColumn("Wind (kn)", format="%.0f"),
-                        "richting": "Richting",
-                    },
-                    hide_index=True,
-                    use_container_width=True,
-                )
-
-        with st.expander("Volledige uurdata", expanded=False):
+    if not windows.empty:
+        with st.expander("Goede vensters deze week", expanded=False):
+            table = windows.copy()
+            table["dag"] = table["start"].apply(lambda t: fmt_day(t.date()))
+            table["venster"] = table.apply(lambda r: fmt_range(r["start"], r["end"]), axis=1)
+            table["richting"] = table["dir_deg"].apply(compass)
             st.dataframe(
-                spot_df[["time", "score", "wind_kn", "gust_kn", "dir_deg", "precip_mm", "wave_m"]],
+                table[["dag", "venster", "hours", "peak_score", "avg_score", "wind_kn", "richting"]],
                 column_config={
-                    "time": st.column_config.DatetimeColumn("Tijd", format="ddd D MMM HH:mm"),
-                    "score": st.column_config.ProgressColumn("Score", min_value=0, max_value=100, format="%.0f"),
+                    "dag": "Dag",
+                    "venster": "Venster",
+                    "hours": st.column_config.NumberColumn("Duur (u)", format="%d"),
+                    "peak_score": st.column_config.ProgressColumn("Piekscore", min_value=0, max_value=100, format="%.0f"),
+                    "avg_score": st.column_config.NumberColumn("Gem. score", format="%.0f"),
+                    "wind_kn": st.column_config.NumberColumn("Wind (kn)", format="%.0f"),
+                    "richting": "Richting",
                 },
                 hide_index=True,
                 use_container_width=True,
-                height=300,
             )
 
-        statuses = model_status.get(spot.id, {})
-        ok = [m for m, up in statuses.items() if up]
-        down = [m for m, up in statuses.items() if not up]
-        status_line = f"Modellen actief: {', '.join(ok) if ok else 'geen'}"
-        if down:
-            status_line += f" · uitgevallen: {', '.join(down)}"
-        st.caption(status_line)
+    with st.expander("Volledige uurdata", expanded=False):
+        st.dataframe(
+            spot_df[["time", "score", "wind_kn", "gust_kn", "dir_deg", "precip_mm", "wave_m"]],
+            column_config={
+                "time": st.column_config.DatetimeColumn("Tijd", format="ddd D MMM HH:mm"),
+                "score": st.column_config.ProgressColumn("Score", min_value=0, max_value=100, format="%.0f"),
+            },
+            hide_index=True,
+            use_container_width=True,
+            height=300,
+        )
+
+    statuses = model_status.get(spot.id, {})
+    ok = [m for m, up in statuses.items() if up]
+    down = [m for m, up in statuses.items() if not up]
+    status_line = f"Modellen actief: {', '.join(ok) if ok else 'geen'}"
+    if down:
+        status_line += f" · uitgevallen: {', '.join(down)}"
+    st.caption(status_line)
