@@ -170,16 +170,22 @@ def load_all_forecasts():
                     "wave_m": h.wave_height_m,
                 }
             )
-    return pd.DataFrame(rows), model_status
+    # Captured inside the cached function, so it reflects when the data was actually
+    # fetched -- not the current render time, which would just always say "now".
+    fetched_at = pd.Timestamp.now()
+    return pd.DataFrame(rows), model_status, fetched_at
 
+
+df, model_status, fetched_at = load_all_forecasts()
+updated_label = f"Bijgewerkt {fetched_at.day} {NL_MONTHS[fetched_at.month - 1]} {fetched_at.strftime('%H:%M')}"
 
 hero_col, info_col = st.columns([0.85, 0.15])
 with hero_col:
     st.markdown(
-        """
+        f"""
         <div class="kite-hero">
             <h1>KiteScout</h1>
-            <div class="kite-kpis">6 spots &middot; 4 modellen &middot; 7 dagen</div>
+            <div class="kite-kpis">6 spots &middot; 4 modellen &middot; 7 dagen &middot; {updated_label}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -207,8 +213,6 @@ Elk uur krijgt een gewogen score op basis van vijf factoren:
 Dit is een **planningshulp, geen veiligheidsadvies**. Check altijd zelf lokale wind, stroming, getij en spotregels.
             """
         )
-
-df, model_status = load_all_forecasts()
 
 if df.empty:
     st.error("Geen data ontvangen van Open-Meteo. Probeer het later opnieuw.")
