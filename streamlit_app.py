@@ -107,6 +107,7 @@ st.markdown(
     .day-card {
         border: 1px solid rgba(128,128,128,0.25); border-radius: 8px; padding: 6px 6px;
         background: var(--secondary-background-color); height: 100%;
+        flex: 0 0 92px; min-width: 92px;
     }
     .spot-tag {
         font-size: 0.62rem; color: #64748b; font-weight: 600; text-transform: uppercase;
@@ -235,6 +236,15 @@ view = df.copy()
 if only_daylight:
     view = view[(view["time"].dt.hour >= 7) & (view["time"].dt.hour <= 21)]
 
+all_days = sorted(view["time"].dt.date.unique())
+ALL_DAYS_LABEL = "Alle dagen"
+day_options = [ALL_DAYS_LABEL] + [fmt_day(d) for d in all_days]
+day_choice = st.segmented_control("Dag", day_options, default=ALL_DAYS_LABEL, key="day_filter")
+selected_day = None
+if day_choice and day_choice != ALL_DAYS_LABEL:
+    selected_day = all_days[day_options.index(day_choice) - 1]
+    view = view[view["time"].dt.date == selected_day]
+
 unique_days = sorted(view["time"].dt.date.unique())
 
 # ---------------------------------------------------------------------------
@@ -313,7 +323,8 @@ st.divider()
 # 2. Alle spots, komende dagen (grid overview, exact dates)
 # ---------------------------------------------------------------------------
 grid_days = unique_days
-st.markdown(f'<div class="section-title">Alle spots — komende {len(grid_days)} dagen</div>', unsafe_allow_html=True)
+grid_title = f"Alle spots — {fmt_day(selected_day)}" if selected_day else f"Alle spots — komende {len(grid_days)} dagen"
+st.markdown(f'<div class="section-title">{grid_title}</div>', unsafe_allow_html=True)
 
 
 def _select_spot(spot_name: str) -> None:
@@ -321,41 +332,42 @@ def _select_spot(spot_name: str) -> None:
     st.session_state["scroll_to_spot"] = True
 
 
-for spot in SPOTS:
-    windows = windows_by_spot[spot.id]
-    with st.container(border=True):
-        st.markdown(
-            f'<div style="display:flex;justify-content:space-between;align-items:baseline;">'
-            f'<span style="font-weight:700;font-size:1rem;">{spot.name}</span>'
-            f'<span class="spot-tag">{WATER_LABEL[spot.is_coastal]} &middot; {spot.water_body}</span></div>',
-            unsafe_allow_html=True,
-        )
-        strip_html = '<div class="day-strip">'
-        for d in grid_days:
-            day_windows = windows[windows["start"].dt.date == d] if not windows.empty else windows
-            if windows.empty or day_windows.empty:
+with st.container(horizontal=True, key="spot_grid", gap="medium"):
+    for spot in SPOTS:
+        windows = windows_by_spot[spot.id]
+        with st.container(border=True, width=380):
+            st.markdown(
+                f'<div style="display:flex;justify-content:space-between;align-items:baseline;">'
+                f'<span style="font-weight:700;font-size:1rem;">{spot.name}</span>'
+                f'<span class="spot-tag">{WATER_LABEL[spot.is_coastal]} &middot; {spot.water_body}</span></div>',
+                unsafe_allow_html=True,
+            )
+            strip_html = '<div class="day-strip">'
+            for d in grid_days:
+                day_windows = windows[windows["start"].dt.date == d] if not windows.empty else windows
+                if windows.empty or day_windows.empty:
+                    strip_html += (
+                        f'<div class="day-col"><div class="day-label">{fmt_day(d)}</div>'
+                        f'<div style="margin-top:6px;">{score_pill(0)}</div>'
+                        f'<div class="day-meta">geen {good_window_min_hours}u+</div></div>'
+                    )
+                    continue
+                best = day_windows.loc[day_windows["peak_score"].idxmax()]
                 strip_html += (
                     f'<div class="day-col"><div class="day-label">{fmt_day(d)}</div>'
-                    f'<div style="margin-top:6px;">{score_pill(0)}</div>'
-                    f'<div class="day-meta">geen {good_window_min_hours}u+</div></div>'
+                    f'<div style="margin-top:6px;">{score_pill(best["peak_score"])}</div>'
+                    f'<div class="day-meta">{fmt_range(best["start"], best["end"])}<br>{best["wind_kn"]:.0f}kn {compass(best["dir_deg"])}</div>'
+                    f"</div>"
                 )
-                continue
-            best = day_windows.loc[day_windows["peak_score"].idxmax()]
-            strip_html += (
-                f'<div class="day-col"><div class="day-label">{fmt_day(d)}</div>'
-                f'<div style="margin-top:6px;">{score_pill(best["peak_score"])}</div>'
-                f'<div class="day-meta">{fmt_range(best["start"], best["end"])}<br>{best["wind_kn"]:.0f}kn {compass(best["dir_deg"])}</div>'
-                f"</div>"
+            strip_html += "</div>"
+            st.markdown(strip_html, unsafe_allow_html=True)
+            st.button(
+                f"Bekijk {spot.name} →",
+                key=f"open_{spot.id}",
+                width="stretch",
+                on_click=_select_spot,
+                args=(spot.name,),
             )
-        strip_html += "</div>"
-        st.markdown(strip_html, unsafe_allow_html=True)
-        st.button(
-            f"Bekijk {spot.name} →",
-            key=f"open_{spot.id}",
-            width="stretch",
-            on_click=_select_spot,
-            args=(spot.name,),
-        )
 
 st.divider()
 
@@ -432,10 +444,9 @@ else:
         band = alt.Chart(band_df).mark_rect(color="#0f766e", opacity=0.15).encode(x="start:T", x2="end:T")
         layers = [band] + layers
     st.altair_chart(alt.layer(*layers).properties(height=190), width="stretch")
-    day_cols = st.columns(len(unique_days))
-    for col, d in zip(day_cols, unique_days):
-        day_windows = windows[windows["start"].dt.date == d] if not windows.empty else windows
-        with col:
+    with st.container(horizontal=True, key=f"day_cards_{spot.id}", gap="small"):
+        for d in unique_days:
+            day_windows = windows[windows["start"].dt.date == d] if not windows.empty else windows
             if windows.empty or day_windows.empty:
                 st.markdown(
                     f"""
