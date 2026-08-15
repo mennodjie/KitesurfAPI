@@ -9,7 +9,6 @@ import asyncio
 import altair as alt
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 
 from kitesurf.scoring import score_hour
 from kitesurf.spots import SPOTS, SPOTS_BY_ID
@@ -22,7 +21,10 @@ st.set_page_config(page_title="NH Kitesurf", page_icon="🪁", layout="wide")
 
 # Reload the tab once the forecast cache would expire anyway, so an open tab
 # picks up fresh data without the user having to refresh manually.
-components.html(f"<script>setTimeout(() => window.parent.location.reload(), {CACHE_TTL_SECONDS * 1000});</script>", height=0)
+st.html(
+    f"<script>setTimeout(() => window.location.reload(), {CACHE_TTL_SECONDS * 1000});</script>",
+    unsafe_allow_javascript=True,
+)
 
 COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
 WATER_LABEL = {True: "Zee", False: "Binnenwater"}
@@ -180,7 +182,7 @@ with hero_col:
         unsafe_allow_html=True,
     )
 with info_col:
-    with st.popover("Uitleg", use_container_width=True):
+    with st.popover("Uitleg", width="stretch"):
         st.markdown(
             f"""
 **Hoe wordt de score (0-100) berekend?**
@@ -300,7 +302,7 @@ else:
                 "richting": "Richting",
             },
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
         )
 
 st.divider()
@@ -348,7 +350,7 @@ for spot in SPOTS:
         st.button(
             f"Bekijk {spot.name} →",
             key=f"open_{spot.id}",
-            use_container_width=True,
+            width="stretch",
             on_click=_select_spot,
             args=(spot.name,),
         )
@@ -363,10 +365,10 @@ st.markdown('<div class="section-title">Per spot</div>', unsafe_allow_html=True)
 
 if st.session_state.get("scroll_to_spot"):
     st.session_state["scroll_to_spot"] = False
-    components.html(
-        "<script>setTimeout(() => { const el = window.parent.document.getElementById('per-spot-section'); "
+    st.html(
+        "<script>setTimeout(() => { const el = document.getElementById('per-spot-section'); "
         "if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'}); }, 100);</script>",
-        height=0,
+        unsafe_allow_javascript=True,
     )
 
 spot_name_options = [s.name for s in SPOTS]
@@ -427,7 +429,7 @@ else:
         band_df = windows.rename(columns={"start": "start", "end": "end"})
         band = alt.Chart(band_df).mark_rect(color="#0f766e", opacity=0.15).encode(x="start:T", x2="end:T")
         layers = [band] + layers
-    st.altair_chart(alt.layer(*layers).properties(height=190), use_container_width=True)
+    st.altair_chart(alt.layer(*layers).properties(height=190), width="stretch")
     day_cols = st.columns(len(unique_days))
     for col, d in zip(day_cols, unique_days):
         day_windows = windows[windows["start"].dt.date == d] if not windows.empty else windows
@@ -475,7 +477,7 @@ else:
                     "richting": "Richting",
                 },
                 hide_index=True,
-                use_container_width=True,
+                width="stretch",
             )
 
     with st.expander("Volledige uurdata", expanded=False):
@@ -486,7 +488,7 @@ else:
                 "score": st.column_config.ProgressColumn("Score", min_value=0, max_value=100, format="%.0f"),
             },
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
             height=300,
         )
 

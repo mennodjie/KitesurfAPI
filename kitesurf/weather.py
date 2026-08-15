@@ -23,7 +23,7 @@ MODELS = [m.strip() for m in os.environ.get("WEATHER_MODELS", ",".join(DEFAULT_M
 
 FORECAST_DAYS = 7
 CACHE_TTL_SECONDS = 15 * 60
-_CONCURRENCY = asyncio.Semaphore(4)
+MAX_CONCURRENT_REQUESTS = 4
 
 _cache: dict[str, tuple[float, "SpotForecast"]] = {}
 
@@ -46,9 +46,9 @@ class SpotForecast:
     marine_available: bool = False
 
 
-async def _get_json(client: httpx.AsyncClient, url: str, params: dict) -> dict | None:
+async def _get_json(client: httpx.AsyncClient, url: str, params: dict, semaphore: asyncio.Semaphore) -> dict | None:
     try:
-        async with _CONCURRENCY:
+        async with semaphore:
             resp = await client.get(url, params=params, timeout=15.0)
         resp.raise_for_status()
         return resp.json()
@@ -63,7 +63,7 @@ def _median(values: list[float | None]) -> float | None:
     return round(statistics.median(clean), 1)
 
 
-async def _fetch_forecast(client: httpx.AsyncClient, spot: Spot) -> tuple[list[HourPoint], dict[str, bool]]:
+async def _fetch_forecast(client: httpx.AsyncClient, spot: Spot, semaphore: asyncio.Semaphore) -> tuple[list[HourPoint], dict[str, bool]]:
     params = {
         "latitude": spot.latitude,
         "longitude": spot.longitude,
@@ -73,7 +73,7 @@ async def _fetch_forecast(client: httpx.AsyncClient, spot: Spot) -> tuple[list[H
         "timezone": "Europe/Amsterdam",
         "forecast_days": FORECAST_DAYS,
     }
-    data = await _get_json(client, FORECAST_URL, params)
+    data = await _get_json(client, FORECAST_URL, params, semaphore)
     model_status = {m: False for m in MODELS}
     if not data or "hourly" not in data:
         return [], model_status
@@ -107,7 +107,7 @@ async def _fetch_forecast(client: httpx.AsyncClient, spot: Spot) -> tuple[list[H
     return hours, model_status
 
 
-async def _fetch_marine(client: httpx.AsyncClient, spot: Spot) -> dict[str, float]:
+async def _fetch_marine(client: httpx.AsyncClient, spot: Spot, semaphore: asyncio.Semaphore) -> dict[str, float]:
     if not spot.is_coastal:
         return {}
     params = {
@@ -117,7 +117,7 @@ async def _fetch_marine(client: httpx.AsyncClient, spot: Spot) -> dict[str, floa
         "timezone": "Europe/Amsterdam",
         "forecast_days": FORECAST_DAYS,
     }
-    data = await _get_json(client, MARINE_URL, params)
+    data = await _get_json(client, MARINE_URL, params, semaphore)
     if not data or "hourly" not in data:
         return {}
     hourly = data["hourly"]
@@ -126,16 +126,22 @@ async def _fetch_marine(client: httpx.AsyncClient, spot: Spot) -> dict[str, floa
     return {t: h for t, h in zip(times, heights) if h is not None}
 
 
-async def get_forecast(spot: Spot, use_cache: bool = True) -> SpotForecast:
+async def get_forecast(spot: Spot, use_cache: bool = True, semaphore: asyncio.Semaphore | None = None) -> SpotForecast:
     if use_cache:
         cached = _cache.get(spot.id)
         if cached and time.time() - cached[0] < CACHE_TTL_SECONDS:
             return cached[1]
 
+    # Created inside the running event loop rather than at module import time --
+    # asyncio.Semaphore binds to whichever loop first uses it, and a module-level
+    # instance would break on the second `asyncio.run()` call with a fresh loop
+    # (exactly what happens every time Streamlit's cache expires and re-fetches).
+    sem = semaphore if semaphore is not None else asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+
     async with httpx.AsyncClient() as client:
         (hours, model_status), wave_by_time = await asyncio.gather(
-            _fetch_forecast(client, spot),
-            _fetch_marine(client, spot),
+            _fetch_forecast(client, spot, sem),
+            _fetch_marine(client, spot, sem),
         )
 
     for hp in hours:
@@ -152,5 +158,6 @@ async def get_forecast(spot: Spot, use_cache: bool = True) -> SpotForecast:
 
 
 async def get_forecasts(spots: list[Spot], use_cache: bool = True) -> dict[str, SpotForecast]:
-    results = await asyncio.gather(*[get_forecast(s, use_cache=use_cache) for s in spots])
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+    results = await asyncio.gather(*[get_forecast(s, use_cache=use_cache, semaphore=semaphore) for s in spots])
     return {f.spot_id: f for f in results}
