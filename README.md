@@ -13,9 +13,11 @@ heads-up, not a plan. KNMI HARMONIE-AROME in particular only forecasts
 other 3 models still cover that hour.
 
 A single high-scoring hour isn't a session — the UI only counts
-**windows of 3+ consecutive hours** above your chosen score threshold
-(configurable in the sidebar) as "good," consistently across the best-
-sessions list, the multi-day overview, and the per-spot detail view.
+**windows of consecutive hours** above your chosen score threshold as
+"good," consistently across the best-sessions list, the multi-day
+overview, and the per-spot detail view. Both the score threshold and
+the minimum window length (1-6 hours, default 3) are adjustable in the
+sidebar.
 
 **The score is a planning aid, not safety advice.** Always check local
 wind, current, tide, spot rules, and your own safety margin.
@@ -68,6 +70,21 @@ Run it locally without waiting for the schedule:
 ```bash
 NTFY_TOPIC=your-topic-name python scripts/check_alerts.py
 ```
+
+### Email (optional, alongside or instead of push)
+
+Set these as repository secrets and the workflow will also send a
+plain-text email digest (one email per run, listing every new alert)
+via SMTP:
+
+- `SMTP_HOST`, `SMTP_PORT` (defaults to 587)
+- `SMTP_USERNAME`, `SMTP_PASSWORD`
+- `NOTIFICATION_FROM`, `NOTIFICATION_TO`
+
+Works with any SMTP provider. For Gmail: use smtp.gmail.com, port 587,
+and a Google Account [App Password](https://myaccount.google.com/apppasswords)
+as `SMTP_PASSWORD` (not your normal password — Gmail requires 2FA to be
+on and an app password for third-party SMTP).
 
 ## Run it (API)
 

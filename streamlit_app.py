@@ -28,7 +28,7 @@ COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "
 WATER_LABEL = {True: "Zee", False: "Binnenwater"}
 NL_WEEKDAYS = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"]
 NL_MONTHS = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
-GOOD_WINDOW_MIN_HOURS = 3
+DEFAULT_GOOD_WINDOW_MIN_HOURS = 3
 METRIC_OPTIONS = {"Score": ("score", "Score (0-100)"), "Wind": ("wind_kn", "Wind (kn)"), "Neerslag": ("precip_mm", "Neerslag (mm)")}
 
 # Muted, solid status colors (white text) -- reads consistently in both light and dark mode
@@ -81,62 +81,62 @@ def score_pill(score: float) -> str:
 st.markdown(
     """
     <style>
+    .block-container { padding-top: 1.4rem; padding-bottom: 1.5rem; }
+    div[data-testid="stVerticalBlockBorderWrapper"] { padding: 0.3rem 0.1rem; }
+    hr { margin: 0.35rem 0 !important; }
+    div[data-testid="stMarkdownContainer"] p { margin-bottom: 0.2rem; }
+
     .kite-hero {
         background: linear-gradient(120deg, #0f172a 0%, #1e293b 55%, #0f2942 100%);
-        color: #f1f5f9; border-radius: 12px; padding: 24px 26px; margin-bottom: 14px;
+        color: #f1f5f9; border-radius: 10px; padding: 10px 16px; margin-bottom: 8px;
         border: 1px solid rgba(255,255,255,0.06);
+        display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;
     }
-    .kite-hero h1 { margin: 0; font-size: 1.5rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.01em; }
-    .kite-hero p { margin: 6px 0 0 0; opacity: 0.82; font-size: 0.92rem; color: #cbd5e1; }
-    .kite-kpis { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
-    .kite-kpi {
-        background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 6px; padding: 5px 12px; font-size: 0.78rem; color: #e2e8f0;
-        text-transform: uppercase; letter-spacing: 0.04em;
-    }
+    .kite-hero h1 { margin: 0; font-size: 1.05rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.01em; }
+    .kite-hero .kite-kpis { font-size: 0.72rem; color: #94a3b8; }
 
     .section-title {
-        font-size: 1.2rem; font-weight: 700; margin: 0 0 2px 0;
-        border-left: 4px solid #0f766e; padding-left: 10px;
+        font-size: 1rem; font-weight: 700; margin: 4px 0 0 0;
+        border-left: 3px solid #0f766e; padding-left: 8px;
     }
 
     .day-card {
-        border: 1px solid rgba(128,128,128,0.25); border-radius: 10px; padding: 12px 14px;
+        border: 1px solid rgba(128,128,128,0.25); border-radius: 8px; padding: 6px 6px;
         background: var(--secondary-background-color); height: 100%;
     }
     .spot-tag {
-        font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase;
+        font-size: 0.62rem; color: #64748b; font-weight: 600; text-transform: uppercase;
         letter-spacing: 0.04em; margin-left: 6px;
     }
-    .day-strip { display: flex; gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }
-    .day-col { text-align: center; padding: 6px 6px; flex: 0 0 auto; min-width: 84px; }
-    .day-label { font-size: 0.68rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; }
-    .day-meta { font-size: 0.7rem; color: #64748b; margin-top: 4px; }
+    .day-strip { display: flex; gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 3px; }
+    .day-col { text-align: center; padding: 3px 5px; flex: 0 0 auto; min-width: 74px; }
+    .day-label { font-size: 0.62rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; }
+    .day-meta { font-size: 0.64rem; color: #64748b; margin-top: 2px; line-height: 1.25; }
 
     .top-card {
-        border-radius: 10px; padding: 14px; text-align: center; height: 100%;
+        border-radius: 8px; padding: 8px 10px; text-align: center; height: 100%;
         background: var(--secondary-background-color); border: 1px solid rgba(128,128,128,0.25);
-        border-top: 4px solid var(--accent-color, #0f766e);
+        border-top: 3px solid var(--accent-color, #0f766e);
     }
-    .top-card .rank { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; color: #94a3b8; text-transform: uppercase; }
-    .top-card .spotname { font-weight: 700; font-size: 1rem; margin: 6px 0 2px 0; }
-    .top-card .bigscore { font-size: 2.1rem; font-weight: 800; }
-    .top-card .tierlabel { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 4px; }
-    .top-card .meta { font-size: 0.78rem; color: #64748b; }
+    .top-card .rank { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; color: #94a3b8; text-transform: uppercase; }
+    .top-card .spotname { font-weight: 700; font-size: 0.88rem; margin: 2px 0 1px 0; }
+    .top-card .bigscore { font-size: 1.5rem; font-weight: 800; line-height: 1.1; }
+    .top-card .tierlabel { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 1px; }
+    .top-card .meta { font-size: 0.68rem; color: #64748b; line-height: 1.3; }
 
     .hero-stat {
-        border-radius: 10px; padding: 16px 18px; margin-bottom: 8px;
+        border-radius: 8px; padding: 8px 12px; margin-bottom: 4px;
         background: var(--secondary-background-color); border: 1px solid rgba(128,128,128,0.25);
-        border-left: 5px solid var(--accent-color, #0f766e);
+        border-left: 4px solid var(--accent-color, #0f766e);
     }
-    .hero-stat .tierlabel { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
-    .hero-stat .num { font-size: 2.4rem; font-weight: 800; line-height: 1.1; }
-    .hero-stat .sub { font-size: 0.82rem; margin-top: 4px; color: #64748b; }
+    .hero-stat .tierlabel { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+    .hero-stat .num { font-size: 1.6rem; font-weight: 800; line-height: 1.1; }
+    .hero-stat .sub { font-size: 0.72rem; margin-top: 2px; color: #64748b; }
 
-    .day-card { text-align: center; border-top: 3px solid var(--accent-color, #94a3b8); }
-    .day-card .dow { font-size: 0.75rem; font-weight: 600; color: #64748b; }
-    .day-card .num { font-size: 1.25rem; font-weight: 800; margin: 4px 0 0 0; }
-    .day-card .sub { font-size: 0.66rem; color: #94a3b8; }
+    .day-card { text-align: center; border-top: 2px solid var(--accent-color, #94a3b8); }
+    .day-card .dow { font-size: 0.66rem; font-weight: 600; color: #64748b; }
+    .day-card .num { font-size: 0.95rem; font-weight: 800; margin: 2px 0 0 0; }
+    .day-card .sub { font-size: 0.6rem; color: #94a3b8; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -168,26 +168,16 @@ def load_all_forecasts():
     return pd.DataFrame(rows), model_status
 
 
-st.markdown(
-    """
-    <div class="kite-hero">
-        <h1>Noord-Holland Kitesurf Forecast</h1>
-        <p>Eén overzicht voor de komende week, samengesteld uit vier onafhankelijke weermodellen.</p>
-        <div class="kite-kpis">
-            <div class="kite-kpi">6 spots</div>
-            <div class="kite-kpi">4 modellen &middot; ECMWF / GFS / ICON / KNMI</div>
-            <div class="kite-kpi">7 dagen vooruit</div>
+hero_col, info_col = st.columns([0.85, 0.15])
+with hero_col:
+    st.markdown(
+        """
+        <div class="kite-hero">
+            <h1>Noord-Holland Kitesurf</h1>
+            <div class="kite-kpis">6 spots &middot; 4 modellen &middot; 7 dagen</div>
         </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-cap_col, info_col = st.columns([0.85, 0.15])
-with cap_col:
-    st.caption(
-        "Muiderberg · Strand Horst · Schellinkhout · IJmuiden · Wijk aan Zee · Zandvoort — "
-        "de score is een planningshulp, geen veiligheidsadvies. Check altijd lokale wind, stroming, getij en spotregels zelf."
+        """,
+        unsafe_allow_html=True,
     )
 with info_col:
     with st.popover("Uitleg", use_container_width=True):
@@ -203,7 +193,7 @@ Elk uur krijgt een gewogen score op basis van vijf factoren:
 - **Neerslag (~10%)** — regen trekt de score omlaag.
 - **Golfhoogte (~5%, alleen zeespots)** — ruwer water bij IJmuiden, Wijk aan Zee en Zandvoort scoort lager. Voor de meren telt dit niet mee.
 
-**Waarom telt een losse piekuur niet altijd mee?** Één goed uur tussen twee slechte uren is geen sessie. Deze app kijkt daarom naar **aaneengesloten vensters van minimaal {GOOD_WINDOW_MIN_HOURS} uur** boven de gekozen score — alleen die vensters worden als "goed" geteld, overal in de app.
+**Waarom telt een losse piekuur niet altijd mee?** Één goed uur tussen twee slechte uren is geen sessie. Deze app kijkt daarom naar **aaneengesloten vensters** boven de gekozen score — hoe lang dat venster minimaal moet zijn stel je zelf in via de zijbalk (standaard {DEFAULT_GOOD_WINDOW_MIN_HOURS} uur). Alleen die vensters worden als "goed" geteld, overal in de app.
 
 **Statusniveaus:** GO (75+) · KANSRIJK (50-74) · TWIJFEL (25-49) · NIKS (<25)
 
@@ -221,14 +211,21 @@ if df.empty:
 
 st.sidebar.header("Filters")
 only_daylight = st.sidebar.checkbox("Alleen overdag (07:00-21:00)", value=True)
+good_window_min_hours = st.sidebar.slider(
+    "Minimale venster-duur (uur)",
+    1,
+    6,
+    DEFAULT_GOOD_WINDOW_MIN_HOURS,
+    help="Hoe lang de wind minimaal aaneengesloten boven de score moet blijven om als een 'goed venster' te tellen.",
+)
 min_score = st.sidebar.slider(
     "Minimale score voor een 'goed venster'",
     0,
     100,
     75,
-    help=f"Alleen aaneengesloten vensters van minimaal {GOOD_WINDOW_MIN_HOURS} uur boven deze score tellen als 'goed'.",
+    help=f"Alleen aaneengesloten vensters van minimaal {good_window_min_hours} uur boven deze score tellen als 'goed'.",
 )
-st.sidebar.caption(f"Vereist ≥{GOOD_WINDOW_MIN_HOURS} uur op rij boven deze score. GO 75+ · KANSRIJK 50-74 · TWIJFEL 25-49 · NIKS <25")
+st.sidebar.caption(f"Vereist ≥{good_window_min_hours} uur op rij boven deze score. GO 75+ · KANSRIJK 50-74 · TWIJFEL 25-49 · NIKS <25")
 
 view = df.copy()
 if only_daylight:
@@ -237,13 +234,13 @@ if only_daylight:
 unique_days = sorted(view["time"].dt.date.unique())
 
 # ---------------------------------------------------------------------------
-# Compute good windows (>= GOOD_WINDOW_MIN_HOURS consecutive hours >= min_score) per spot, once.
+# Compute good windows (>= good_window_min_hours consecutive hours >= min_score) per spot, once.
 # ---------------------------------------------------------------------------
 windows_by_spot = {}
 all_windows = []
 for spot in SPOTS:
     spot_df = view[view["spot_id"] == spot.id]
-    w = compute_good_windows(spot_df, threshold=min_score, min_hours=GOOD_WINDOW_MIN_HOURS)
+    w = compute_good_windows(spot_df, threshold=min_score, min_hours=good_window_min_hours)
     windows_by_spot[spot.id] = w
     if not w.empty:
         w = w.copy()
@@ -257,11 +254,10 @@ all_windows_df = pd.concat(all_windows, ignore_index=True) if all_windows else p
 # 1. Beste sessies
 # ---------------------------------------------------------------------------
 st.markdown('<div class="section-title">Beste sessies</div>', unsafe_allow_html=True)
-st.caption(f"Vensters van minimaal {GOOD_WINDOW_MIN_HOURS} aaneengesloten uren boven score {min_score}, gerangschikt op piekscore.")
 
 if all_windows_df.empty:
     st.info(
-        f"Geen vensters van {GOOD_WINDOW_MIN_HOURS}+ uur boven score {min_score} gevonden. "
+        f"Geen vensters van {good_window_min_hours}+ uur boven score {min_score} gevonden. "
         "Verlaag de slider in de zijbalk om minder strikte sessies te zien."
     )
 else:
@@ -286,7 +282,6 @@ else:
                 unsafe_allow_html=True,
             )
 
-    st.write("")
     with st.expander(f"Alle {len(ranked)} goede vensters (tabel)", expanded=False):
         table = ranked.copy()
         table["dag"] = table["start"].apply(lambda t: fmt_day(t.date()))
@@ -315,11 +310,6 @@ st.divider()
 # ---------------------------------------------------------------------------
 grid_days = unique_days
 st.markdown(f'<div class="section-title">Alle spots — komende {len(grid_days)} dagen</div>', unsafe_allow_html=True)
-st.caption(
-    f"Beste {GOOD_WINDOW_MIN_HOURS}+ uur venster per dag, per spot. 0 betekent: geen aaneengesloten venster van "
-    f"{GOOD_WINDOW_MIN_HOURS}+ uur boven score {min_score} die dag. Swipe zijwaarts voor meer dagen, of klik "
-    "'Bekijk' voor het volledige overzicht van een spot."
-)
 
 
 def _select_spot(spot_name: str) -> None:
@@ -343,7 +333,7 @@ for spot in SPOTS:
                 strip_html += (
                     f'<div class="day-col"><div class="day-label">{fmt_day(d)}</div>'
                     f'<div style="margin-top:6px;">{score_pill(0)}</div>'
-                    f'<div class="day-meta">geen {GOOD_WINDOW_MIN_HOURS}u+</div></div>'
+                    f'<div class="day-meta">geen {good_window_min_hours}u+</div></div>'
                 )
                 continue
             best = day_windows.loc[day_windows["peak_score"].idxmax()]
@@ -370,7 +360,6 @@ st.divider()
 # ---------------------------------------------------------------------------
 st.markdown('<div id="per-spot-section"></div>', unsafe_allow_html=True)
 st.markdown('<div class="section-title">Per spot</div>', unsafe_allow_html=True)
-st.write("")
 
 if st.session_state.get("scroll_to_spot"):
     st.session_state["scroll_to_spot"] = False
@@ -399,7 +388,7 @@ else:
                 <div class="hero-stat" style="--accent-color:{TIER_COLORS['NIKS']};">
                     <div class="tierlabel" style="color:{TIER_COLORS['NIKS']};">NIKS</div>
                     <div class="num">–</div>
-                    <div class="sub">Geen venster van {GOOD_WINDOW_MIN_HOURS}+ uur boven score {min_score} deze week.</div>
+                    <div class="sub">Geen venster van {good_window_min_hours}+ uur boven score {min_score} deze week.</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -420,7 +409,7 @@ else:
             )
     with metrics_col:
         c1, c2 = st.columns(2)
-        c1.metric(f"Goede vensters (≥{GOOD_WINDOW_MIN_HOURS}u)", len(windows))
+        c1.metric(f"Goede vensters (≥{good_window_min_hours}u)", len(windows))
         good_hours = int(windows["hours"].sum()) if not windows.empty else 0
         c2.metric("Totaal goede uren", good_hours, "deze week")
 
@@ -438,10 +427,7 @@ else:
         band_df = windows.rename(columns={"start": "start", "end": "end"})
         band = alt.Chart(band_df).mark_rect(color="#0f766e", opacity=0.15).encode(x="start:T", x2="end:T")
         layers = [band] + layers
-    st.altair_chart(alt.layer(*layers).properties(height=260), use_container_width=True)
-    st.caption("Gemarkeerde band = aaneengesloten goed venster.")
-
-    st.markdown("**Dagoverzicht**")
+    st.altair_chart(alt.layer(*layers).properties(height=190), use_container_width=True)
     day_cols = st.columns(len(unique_days))
     for col, d in zip(day_cols, unique_days):
         day_windows = windows[windows["start"].dt.date == d] if not windows.empty else windows
