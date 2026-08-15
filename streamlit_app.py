@@ -5,6 +5,7 @@ in Chrome and use "Add to Home Screen" for an app-like icon.
 """
 
 import asyncio
+from pathlib import Path
 
 import altair as alt
 import pandas as pd
@@ -16,8 +17,9 @@ from kitesurf.weather import CACHE_TTL_SECONDS, get_forecasts
 from kitesurf.windows import compute_good_windows
 
 SPOTS_BY_NAME = {s.name: s for s in SPOTS}
+ICON_PATH = Path(__file__).parent / "assets" / "icon.png"
 
-st.set_page_config(page_title="NH Kitesurf", page_icon="🪁", layout="wide")
+st.set_page_config(page_title="KiteScout", page_icon=str(ICON_PATH), layout="wide")
 
 # Reload the tab once the forecast cache would expire anyway, so an open tab
 # picks up fresh data without the user having to refresh manually.
@@ -175,7 +177,7 @@ with hero_col:
     st.markdown(
         """
         <div class="kite-hero">
-            <h1>Noord-Holland Kitesurf</h1>
+            <h1>KiteScout</h1>
             <div class="kite-kpis">6 spots &middot; 4 modellen &middot; 7 dagen</div>
         </div>
         """,

@@ -10,7 +10,7 @@ from kitesurf.spots import SPOTS, SPOTS_BY_ID
 from kitesurf.weather import get_forecast, get_forecasts
 
 app = FastAPI(
-    title="Noord-Holland Kitesurf Weather API",
+    title="KiteScout API",
     description="Open weather/marine data combined into a kitesurf spot ranking. Planning aid, not safety advice.",
 )
 
