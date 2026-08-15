@@ -12,6 +12,11 @@ heads-up, not a plan. KNMI HARMONIE-AROME in particular only forecasts
 ~2-3 days out; beyond that the score falls back to whichever of the
 other 3 models still cover that hour.
 
+A single high-scoring hour isn't a session — the UI only counts
+**windows of 3+ consecutive hours** above your chosen score threshold
+(configurable in the sidebar) as "good," consistently across the best-
+sessions list, the multi-day overview, and the per-spot detail view.
+
 **The score is a planning aid, not safety advice.** Always check local
 wind, current, tide, spot rules, and your own safety margin.
 
@@ -29,6 +34,40 @@ without building a native app: deploy to [Streamlit Community
 Cloud](https://streamlit.io/cloud) (free — connect this GitHub repo,
 point it at `streamlit_app.py`), then on Android open the deployed URL in
 Chrome and use **⋮ → Add to Home Screen** for an app-like icon.
+
+The forecast is cached for 15 minutes (`CACHE_TTL_SECONDS` in
+`kitesurf/weather.py`); an open tab silently reloads on that same
+interval so it picks up fresh data without a manual refresh.
+
+## Push notifications
+
+Streamlit Community Cloud has no background scheduler, and a phone
+browser tab can't reliably push notifications on its own. Instead,
+a free GitHub Actions cron job checks the forecast every 3 hours and
+pushes via [ntfy.sh](https://ntfy.sh) (no account needed — just an
+Android app and a topic name) whenever a spot gets a new **3+ hour
+GO window (score ≥75) starting within the next 3 days**. Already-sent
+alerts are deduplicated via `data/alert_state.json`, committed back to
+the repo by the workflow.
+
+Setup:
+
+1. Install the **ntfy** app from the Play Store.
+2. In the app, subscribe to a topic — pick something long and
+   hard-to-guess (e.g. `nh-kite-<random-string>`), since ntfy.sh topics
+   are public unless you self-host: anyone who knows the topic name can
+   subscribe or publish to it.
+3. In this repo's GitHub settings → **Secrets and variables → Actions**,
+   add a repository secret named `NTFY_TOPIC` with that same topic name.
+4. The workflow (`.github/workflows/wind-alert.yml`) runs automatically
+   every 3 hours, or trigger it manually from the Actions tab
+   ("Run workflow") to test it immediately.
+
+Run it locally without waiting for the schedule:
+
+```bash
+NTFY_TOPIC=your-topic-name python scripts/check_alerts.py
+```
 
 ## Run it (API)
 

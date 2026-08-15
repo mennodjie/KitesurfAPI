@@ -1,0 +1,35 @@
+name: Wind alert
+
+on:
+  schedule:
+    - cron: "0 */3 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - run: python scripts/check_alerts.py
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          ALERT_SCORE_THRESHOLD: "75"
+          ALERT_WITHIN_DAYS: "3"
+          ALERT_MIN_HOURS: "3"
+
+      - name: Commit updated alert state
+        run: |
+          git config user.name "wind-alert-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/alert_state.json
+          git diff --cached --quiet || git commit -m "Update alert state"
+          git push
