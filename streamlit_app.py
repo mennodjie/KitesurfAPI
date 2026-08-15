@@ -172,7 +172,10 @@ def load_all_forecasts():
             )
     # Captured inside the cached function, so it reflects when the data was actually
     # fetched -- not the current render time, which would just always say "now".
-    fetched_at = pd.Timestamp.now()
+    # Naive Amsterdam wall-clock time, matching the (also naive) Open-Meteo timestamps.
+    # Streamlit Cloud runs its containers in UTC, so a plain pd.Timestamp.now() would be
+    # 1-2 hours off depending on DST.
+    fetched_at = pd.Timestamp.now(tz="Europe/Amsterdam").tz_localize(None)
     return pd.DataFrame(rows), model_status, fetched_at
 
 

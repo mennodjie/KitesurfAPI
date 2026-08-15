@@ -27,6 +27,13 @@ MIN_HOURS = int(os.environ.get("ALERT_MIN_HOURS", "3"))
 STATE_PATH = Path(__file__).resolve().parent.parent / "data" / "alert_state.json"
 
 
+def amsterdam_now() -> pd.Timestamp:
+    """Naive wall-clock time in Europe/Amsterdam, matching the (also naive) timestamps
+    Open-Meteo returns for that timezone. GitHub Actions runners are UTC, so a plain
+    pd.Timestamp.now() would be 1-2 hours off depending on DST."""
+    return pd.Timestamp.now(tz="Europe/Amsterdam").tz_localize(None)
+
+
 def load_state() -> set:
     if STATE_PATH.exists():
         return set(json.loads(STATE_PATH.read_text()).get("notified", []))
@@ -40,7 +47,7 @@ def save_state(notified: set) -> None:
 
 def send_test_notification() -> None:
     """Sends one synthetic alert through both channels -- ignores real forecast data and dedupe state."""
-    now = pd.Timestamp.now()
+    now = amsterdam_now()
     alert = {
         "key": "test|" + now.isoformat(),
         "spot_id": "test",
@@ -87,7 +94,7 @@ async def main() -> None:
         windows_by_spot[spot.id] = compute_good_windows(spot_df, threshold=THRESHOLD, min_hours=MIN_HOURS)
 
     notified = load_state()
-    now = pd.Timestamp.now()
+    now = amsterdam_now()
     spot_names = {s.id: s.name for s in SPOTS}
     alerts = find_new_alerts(windows_by_spot, spot_names, THRESHOLD, WITHIN_DAYS, notified, now)
 
