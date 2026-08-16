@@ -12,6 +12,7 @@ import pandas as pd
 import streamlit as st
 
 from kitesurf.accuracy import MIN_SAMPLES_FOR_SUMMARY, load_log, summarize
+from kitesurf.kitesize import recommend_kite_size
 from kitesurf.observations import get_observations
 from kitesurf.scoring import gust_ratio, model_confidence, score_hour
 from kitesurf.spots import SPOTS, SPOTS_BY_ID
@@ -281,6 +282,8 @@ Every hour gets a weighted score based on five factors:
 
 **Status levels:** GO (75+) · PROMISING (50-74) · MARGINAL (25-49) · SKIP (<25)
 
+**Suggested kite size:** a rough guide from your weight (set in the sidebar under "Gear") and the wind speed at that window's peak, snapped to common kite sizes. Real kite lift doesn't scale perfectly linearly with wind speed, and riding style/kite type change what actually works -- treat this as a starting point, not a substitute for your own gear knowledge.
+
 **Data source:** four independent weather models (ECMWF, GFS, ICON, KNMI HARMONIE-AROME) via Open-Meteo — the score uses the median, so one outlier model doesn't dominate the result. Wave data comes from Open-Meteo Marine. KNMI HARMONIE-AROME usually only covers 2-3 days ahead; the other models fill in beyond that.
 
 This is a **planning aid, not safety advice**. Always check local wind, current, tide, and spot rules yourself.
@@ -308,6 +311,16 @@ min_score = st.sidebar.slider(
     help=f"Only windows of at least {good_window_min_hours} consecutive hours above this score count as 'good'.",
 )
 st.sidebar.caption(f"Requires ≥{good_window_min_hours}h in a row above this score. GO 75+ · PROMISING 50-74 · MARGINAL 25-49 · SKIP <25")
+
+st.sidebar.header("Gear")
+rider_weight_kg = st.sidebar.number_input(
+    "Your weight (kg)",
+    min_value=30,
+    max_value=150,
+    value=73,
+    step=1,
+    help="Used for a rough kite-size suggestion -- a starting point, not a substitute for your own judgement or a shop fitting.",
+)
 
 view = df.copy()
 if only_daylight:
@@ -358,6 +371,8 @@ else:
     cols = st.columns(len(top3))
     for col, (_, row), rank in zip(cols, top3.iterrows(), ranks):
         s = score_style(row["peak_score"])
+        kite_size = recommend_kite_size(rider_weight_kg, row["wind_kn"])
+        kite_label = f"{kite_size:.0f}m" if kite_size is not None else "–"
         with col:
             st.markdown(
                 f"""
@@ -368,6 +383,7 @@ else:
                     <div class="bigscore">{row['peak_score']:.0f}</div>
                     <div class="meta">{fmt_day(row['start'].date())} &middot; {fmt_range(row['start'], row['end'])}</div>
                     <div class="meta">{row['wind_kn']:.0f} kn &middot; {dir_label(row['dir_deg'])} &middot; {row['hours']:.0f}h</div>
+                    <div class="meta">Suggested kite: {kite_label}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -379,8 +395,9 @@ else:
         table["window"] = table.apply(lambda r: fmt_range(r["start"], r["end"]), axis=1)
         table["direction"] = table["dir_deg"].apply(dir_label)
         table["confidence"] = table["confidence"].apply(confidence_label)
+        table["kite_m"] = table["wind_kn"].apply(lambda w: recommend_kite_size(rider_weight_kg, w))
         st.dataframe(
-            table[["day", "spot", "window", "hours", "peak_score", "avg_score", "wind_kn", "direction", "confidence"]],
+            table[["day", "spot", "window", "hours", "peak_score", "avg_score", "wind_kn", "direction", "kite_m", "confidence"]],
             column_config={
                 "day": "Day",
                 "spot": "Spot",
@@ -390,6 +407,7 @@ else:
                 "avg_score": st.column_config.NumberColumn("Avg score", format="%.0f"),
                 "wind_kn": st.column_config.NumberColumn("Wind (kn)", format="%.0f"),
                 "direction": "Direction",
+                "kite_m": st.column_config.NumberColumn("Kite (m)", format="%.0f", help=f"Rough suggestion for a {rider_weight_kg:.0f}kg rider."),
                 "confidence": st.column_config.TextColumn("Model agreement", help="How closely the 4 weather models agree at the peak hour."),
             },
             hide_index=True,
@@ -514,6 +532,8 @@ else:
         else:
             best = windows.loc[windows["peak_score"].idxmax()]
             s = score_style(best["peak_score"])
+            kite_size = recommend_kite_size(rider_weight_kg, best["wind_kn"])
+            kite_label = f"{kite_size:.0f}m" if kite_size is not None else "–"
             st.markdown(
                 f"""
                 <div class="hero-stat" style="--accent-color:{s['color']};">
@@ -521,6 +541,7 @@ else:
                     <div class="num">{best['peak_score']:.0f}</div>
                     <div class="sub">{fmt_day(best['start'].date())} &middot; {fmt_range(best['start'], best['end'])}</div>
                     <div class="sub">{best['wind_kn']:.0f} kn &middot; {dir_label(best['dir_deg'])} &middot; {best['hours']:.0f}h in a row</div>
+                    <div class="sub">Suggested kite: {kite_label} (for {rider_weight_kg:.0f}kg)</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -581,8 +602,9 @@ else:
             table["window"] = table.apply(lambda r: fmt_range(r["start"], r["end"]), axis=1)
             table["direction"] = table["dir_deg"].apply(dir_label)
             table["confidence"] = table["confidence"].apply(confidence_label)
+            table["kite_m"] = table["wind_kn"].apply(lambda w: recommend_kite_size(rider_weight_kg, w))
             st.dataframe(
-                table[["day", "window", "hours", "peak_score", "avg_score", "wind_kn", "direction", "confidence"]],
+                table[["day", "window", "hours", "peak_score", "avg_score", "wind_kn", "direction", "kite_m", "confidence"]],
                 column_config={
                     "day": "Day",
                     "window": "Window",
@@ -591,6 +613,7 @@ else:
                     "avg_score": st.column_config.NumberColumn("Avg score", format="%.0f"),
                     "wind_kn": st.column_config.NumberColumn("Wind (kn)", format="%.0f"),
                     "direction": "Direction",
+                    "kite_m": st.column_config.NumberColumn("Kite (m)", format="%.0f", help=f"Rough suggestion for a {rider_weight_kg:.0f}kg rider."),
                     "confidence": st.column_config.TextColumn("Model agreement", help="How closely the 4 weather models agree at the peak hour."),
                 },
                 hide_index=True,
