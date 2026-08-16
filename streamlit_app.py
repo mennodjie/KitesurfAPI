@@ -9,6 +9,7 @@ from pathlib import Path
 
 import altair as alt
 import pandas as pd
+import pydeck as pdk
 import streamlit as st
 
 from kitesurf.scoring import score_hour
@@ -235,11 +236,6 @@ if df.empty:
     st.stop()
 
 st.sidebar.header("Filters")
-spot_names_all = [s.name for s in SPOTS]
-st.session_state.setdefault("active_spots", spot_names_all)
-active_spot_names = st.sidebar.multiselect("Spots to show", spot_names_all, key="active_spots")
-active_spots = [s for s in SPOTS if s.name in set(active_spot_names)]
-
 only_daylight = st.sidebar.checkbox("Daytime only (07:00-21:00)", value=True)
 good_window_min_hours = st.sidebar.slider(
     "Minimum window length (hours)",
@@ -257,11 +253,7 @@ min_score = st.sidebar.slider(
 )
 st.sidebar.caption(f"Requires ≥{good_window_min_hours}h in a row above this score. GO 75+ · PROMISING 50-74 · MARGINAL 25-49 · SKIP <25")
 
-if not active_spots:
-    st.warning("No spots selected — pick at least one in the sidebar to see forecasts.")
-    st.stop()
-
-view = df[df["spot_id"].isin([s.id for s in active_spots])].copy()
+view = df.copy()
 if only_daylight:
     view = view[(view["time"].dt.hour >= 7) & (view["time"].dt.hour <= 21)]
 
@@ -281,7 +273,7 @@ unique_days = sorted(view["time"].dt.date.unique())
 # ---------------------------------------------------------------------------
 windows_by_spot = {}
 all_windows = []
-for spot in active_spots:
+for spot in SPOTS:
     spot_df = view[view["spot_id"] == spot.id]
     w = compute_good_windows(spot_df, threshold=min_score, min_hours=good_window_min_hours)
     windows_by_spot[spot.id] = w
@@ -349,6 +341,75 @@ else:
 st.divider()
 
 # ---------------------------------------------------------------------------
+# Map -- one marker per spot, colored/sized by its best qualifying window
+# in the current filter (Day picker + score/duration sliders).
+# ---------------------------------------------------------------------------
+map_title = f"Map — {fmt_day(selected_day)}" if selected_day else "Map — best window in view"
+st.markdown(f'<div class="section-title">{map_title}</div>', unsafe_allow_html=True)
+
+TIER_RGB = {
+    "GO": [15, 118, 110],
+    "PROMISING": [180, 83, 9],
+    "MARGINAL": [154, 52, 18],
+    "SKIP": [100, 116, 139],
+}
+
+map_rows = []
+for spot in SPOTS:
+    windows = windows_by_spot[spot.id]
+    if windows.empty:
+        tier, score, detail = "SKIP", 0.0, "No good window in this filter"
+    else:
+        best = windows.loc[windows["peak_score"].idxmax()]
+        tier = score_style(best["peak_score"])["tier"]
+        score = float(best["peak_score"])
+        detail = f"{fmt_day(best['start'].date())} {fmt_range(best['start'], best['end'])} · {best['wind_kn']:.0f} kn {compass(best['dir_deg'])}"
+    map_rows.append(
+        {
+            "spot": spot.name,
+            "lat": spot.latitude,
+            "lon": spot.longitude,
+            "score": round(score),
+            "tier": tier,
+            "detail": detail,
+            "color": TIER_RGB[tier],
+            "radius": 700 + score * 25,
+        }
+    )
+map_df = pd.DataFrame(map_rows)
+
+map_layer = pdk.Layer(
+    "ScatterplotLayer",
+    data=map_df,
+    get_position=["lon", "lat"],
+    get_fill_color="color",
+    get_radius="radius",
+    pickable=True,
+    opacity=0.85,
+    stroked=True,
+    get_line_color=[255, 255, 255],
+    line_width_min_pixels=1,
+)
+map_view_state = pdk.ViewState(
+    latitude=map_df["lat"].mean(),
+    longitude=map_df["lon"].mean(),
+    zoom=9,
+)
+st.pydeck_chart(
+    pdk.Deck(
+        layers=[map_layer],
+        initial_view_state=map_view_state,
+        tooltip={
+            "html": "<b>{spot}</b><br/>Score: {score}<br/>{detail}",
+            "style": {"backgroundColor": "#0f172a", "color": "white"},
+        },
+    ),
+    height=420,
+)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # 2. All spots, upcoming days (grid overview, exact dates)
 # ---------------------------------------------------------------------------
 grid_days = unique_days
@@ -362,7 +423,7 @@ def _select_spot(spot_name: str) -> None:
 
 
 with st.container(horizontal=True, key="spot_grid", gap="medium"):
-    for spot in active_spots:
+    for spot in SPOTS:
         windows = windows_by_spot[spot.id]
         with st.container(border=True, width=380):
             st.markdown(
@@ -414,11 +475,11 @@ if st.session_state.get("scroll_to_spot"):
         unsafe_allow_javascript=True,
     )
 
-spot_name_options = [s.name for s in active_spots]
+spot_name_options = [s.name for s in SPOTS]
 if st.session_state.get("spot_selector") not in spot_name_options:
     st.session_state["spot_selector"] = spot_name_options[0]
 chosen_name = st.segmented_control("Choose a spot", spot_name_options, key="spot_selector")
-spot = SPOTS_BY_NAME.get(chosen_name, active_spots[0])
+spot = SPOTS_BY_NAME.get(chosen_name, SPOTS[0])
 
 spot_df = view[view["spot_id"] == spot.id].sort_values("time")
 if spot_df.empty:

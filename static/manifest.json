@@ -1,11 +1,15 @@
 {
+  "id": "com.kitescout.app",
   "name": "KiteScout",
   "short_name": "KiteScout",
-  "description": "Wind-consensus forecast and good-window alerts for 6 kitesurf spots in Noord-Holland and Flevoland.",
-  "start_url": ".",
-  "scope": ".",
+  "description": "Wind-consensus forecast and good-window alerts for 6 kitesurf spots in Noord-Holland and Flevoland. Combines 4 independent weather models to score ridable conditions, hour by hour.",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
+  "dir": "ltr",
+  "lang": "en",
+  "categories": ["sports", "weather"],
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "icons": [
