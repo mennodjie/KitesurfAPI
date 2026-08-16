@@ -11,8 +11,11 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from kitesurf.scoring import score_hour
+from kitesurf.accuracy import MIN_SAMPLES_FOR_SUMMARY, load_log, summarize
+from kitesurf.observations import get_observations
+from kitesurf.scoring import gust_ratio, model_confidence, score_hour
 from kitesurf.spots import SPOTS, SPOTS_BY_ID
+from kitesurf.tides import TIDE_STATION_NAME, get_tide_events
 from kitesurf.weather import CACHE_TTL_SECONDS, get_forecasts
 from kitesurf.windows import compute_good_windows
 
@@ -46,7 +49,12 @@ WATER_LABEL = {True: "Sea", False: "Inland water"}
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 DEFAULT_GOOD_WINDOW_MIN_HOURS = 3
-METRIC_OPTIONS = {"Score": ("score", "Score (0-100)"), "Wind": ("wind_kn", "Wind (kn)"), "Rain": ("precip_mm", "Rain (mm)")}
+METRIC_OPTIONS = {
+    "Score": ("score", "Score (0-100)"),
+    "Wind": ("wind_kn", "Wind (kn)"),
+    "Gust ratio": ("gust_ratio", "Gust / wind ratio"),
+    "Rain": ("precip_mm", "Rain (mm)"),
+}
 
 # Muted, solid status colors (white text) -- reads consistently in both light and dark mode
 # since each chip carries its own fixed background rather than relying on the page theme.
@@ -178,9 +186,12 @@ def load_all_forecasts():
                     "score": score_hour(spot, h),
                     "wind_kn": h.wind_speed_kn,
                     "gust_kn": h.wind_gust_kn,
+                    "gust_ratio": gust_ratio(h),
                     "dir_deg": h.wind_direction_deg,
                     "precip_mm": h.precipitation_mm,
                     "wave_m": h.wave_height_m,
+                    "model_spread_kn": h.wind_speed_spread_kn,
+                    "confidence": model_confidence(h.wind_speed_spread_kn),
                 }
             )
     # Captured inside the cached function, so it reflects when the data was actually
@@ -190,6 +201,24 @@ def load_all_forecasts():
     # 1-2 hours off depending on DST.
     fetched_at = pd.Timestamp.now(tz="Europe/Amsterdam").tz_localize(None)
     return pd.DataFrame(rows), model_status, fetched_at
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_live_observations():
+    """Actual (not forecast) station readings -- refreshed more often than the forecast."""
+    return asyncio.run(get_observations(SPOTS))
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def load_tide_events():
+    """Shared North Sea tide reference -- changes slowly, cached longer than the forecast."""
+    return asyncio.run(get_tide_events())
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def load_accuracy_summary():
+    log_path = Path(__file__).parent / "data" / "accuracy_log.jsonl"
+    return summarize(load_log(log_path))
 
 
 df, model_status, fetched_at = load_all_forecasts()
@@ -322,7 +351,7 @@ else:
         table["window"] = table.apply(lambda r: fmt_range(r["start"], r["end"]), axis=1)
         table["direction"] = table["dir_deg"].apply(compass)
         st.dataframe(
-            table[["day", "spot", "window", "hours", "peak_score", "avg_score", "wind_kn", "direction"]],
+            table[["day", "spot", "window", "hours", "peak_score", "avg_score", "wind_kn", "direction", "confidence"]],
             column_config={
                 "day": "Day",
                 "spot": "Spot",
@@ -332,6 +361,7 @@ else:
                 "avg_score": st.column_config.NumberColumn("Avg score", format="%.0f"),
                 "wind_kn": st.column_config.NumberColumn("Wind (kn)", format="%.0f"),
                 "direction": "Direction",
+                "confidence": st.column_config.TextColumn("Model agreement", help="How closely the 4 weather models agree at the peak hour."),
             },
             hide_index=True,
             width="stretch",
@@ -417,6 +447,27 @@ if spot_df.empty:
 else:
     windows = windows_by_spot[spot.id]
 
+    live_obs = load_live_observations().get(spot.id)
+    live_bits = []
+    if live_obs is not None:
+        live_bits.append(
+            f"Live now: {live_obs.wind_kn:.0f} kn, gust {live_obs.gust_kn:.0f} kn, {compass(live_obs.dir_deg)} "
+            f"— {live_obs.station_name} ({live_obs.distance_km:.0f} km away)"
+        )
+    if spot.is_coastal:
+        tide_events = [e for e in load_tide_events() if e.time >= pd.Timestamp.now(tz=e.time.tz)]
+        next_high = next((e for e in tide_events if e.kind == "high"), None)
+        next_low = next((e for e in tide_events if e.kind == "low"), None)
+        tide_bits = []
+        if next_high is not None:
+            tide_bits.append(f"high {next_high.time.strftime('%a %H:%M')}")
+        if next_low is not None:
+            tide_bits.append(f"low {next_low.time.strftime('%a %H:%M')}")
+        if tide_bits:
+            live_bits.append(f"Next tide ({TIDE_STATION_NAME}): {' · '.join(tide_bits)}")
+    if live_bits:
+        st.caption(" · ".join(live_bits))
+
     hero_col, metrics_col = st.columns([0.4, 0.6])
     with hero_col:
         if windows.empty:
@@ -500,7 +551,7 @@ else:
             table["window"] = table.apply(lambda r: fmt_range(r["start"], r["end"]), axis=1)
             table["direction"] = table["dir_deg"].apply(compass)
             st.dataframe(
-                table[["day", "window", "hours", "peak_score", "avg_score", "wind_kn", "direction"]],
+                table[["day", "window", "hours", "peak_score", "avg_score", "wind_kn", "direction", "confidence"]],
                 column_config={
                     "day": "Day",
                     "window": "Window",
@@ -509,6 +560,7 @@ else:
                     "avg_score": st.column_config.NumberColumn("Avg score", format="%.0f"),
                     "wind_kn": st.column_config.NumberColumn("Wind (kn)", format="%.0f"),
                     "direction": "Direction",
+                    "confidence": st.column_config.TextColumn("Model agreement", help="How closely the 4 weather models agree at the peak hour."),
                 },
                 hide_index=True,
                 width="stretch",
@@ -516,15 +568,33 @@ else:
 
     with st.expander("Full hourly data", expanded=False):
         st.dataframe(
-            spot_df[["time", "score", "wind_kn", "gust_kn", "dir_deg", "precip_mm", "wave_m"]],
+            spot_df[["time", "score", "wind_kn", "gust_kn", "gust_ratio", "dir_deg", "precip_mm", "wave_m", "model_spread_kn", "confidence"]],
             column_config={
                 "time": st.column_config.DatetimeColumn("Time", format="ddd D MMM HH:mm"),
                 "score": st.column_config.ProgressColumn("Score", min_value=0, max_value=100, format="%.0f"),
+                "gust_ratio": st.column_config.NumberColumn("Gust ratio", format="%.2f"),
+                "model_spread_kn": st.column_config.NumberColumn("Model spread (kn)", format="%.1f"),
+                "confidence": st.column_config.TextColumn("Model agreement"),
             },
             hide_index=True,
             width="stretch",
             height=300,
         )
+
+    with st.expander("Forecast accuracy", expanded=False):
+        accuracy = load_accuracy_summary()
+        spot_accuracy = accuracy[accuracy["spot_id"] == spot.id]
+        if spot_accuracy.empty:
+            st.caption(
+                f"Not enough logged samples yet for {spot.name} (needs {MIN_SAMPLES_FOR_SUMMARY}+, checked every 3h). "
+                "Come back after this has run for a day or two."
+            )
+        else:
+            row = spot_accuracy.iloc[0]
+            st.caption(
+                f"Based on {int(row['samples'])} logged hours: forecast wind speed has been off by an average of "
+                f"{row['mean_wind_error_kn']:.1f} kn, and direction by {row['mean_dir_error_deg']:.0f}° at {spot.name}."
+            )
 
     statuses = model_status.get(spot.id, {})
     ok = [m for m, up in statuses.items() if up]

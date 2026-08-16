@@ -36,6 +36,9 @@ class HourPoint:
     wind_direction_deg: float | None
     precipitation_mm: float | None
     wave_height_m: float | None
+    # Spread (max-min) of wind_speed_kn across the models that responded this hour --
+    # a proxy for forecast confidence. None when fewer than 2 models reported.
+    wind_speed_spread_kn: float | None = None
 
 
 @dataclass
@@ -61,6 +64,13 @@ def _median(values: list[float | None]) -> float | None:
     if not clean:
         return None
     return round(statistics.median(clean), 1)
+
+
+def _spread(values: list[float | None]) -> float | None:
+    clean = [v for v in values if v is not None]
+    if len(clean) < 2:
+        return None
+    return round(max(clean) - min(clean), 1)
 
 
 async def _fetch_forecast(client: httpx.AsyncClient, spot: Spot, semaphore: asyncio.Semaphore) -> tuple[list[HourPoint], dict[str, bool]]:
@@ -102,6 +112,7 @@ async def _fetch_forecast(client: httpx.AsyncClient, spot: Spot, semaphore: asyn
                 wind_direction_deg=_median(dirs),
                 precipitation_mm=_median(precs),
                 wave_height_m=None,
+                wind_speed_spread_kn=_spread(speeds),
             )
         )
     return hours, model_status

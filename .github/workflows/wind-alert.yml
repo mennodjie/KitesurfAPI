@@ -39,10 +39,12 @@ jobs:
           ALERT_MIN_HOURS: "3"
           TEST_NOTIFICATION: ${{ inputs.test_notification }}
 
-      - name: Commit updated alert state
+      - run: python scripts/log_accuracy.py
+
+      - name: Commit updated alert state and accuracy log
         run: |
           git config user.name "wind-alert-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/alert_state.json
-          git diff --cached --quiet || git commit -m "Update alert state"
+          git add data/alert_state.json data/accuracy_log.jsonl
+          git diff --cached --quiet || git commit -m "Update alert state and accuracy log"
           git push

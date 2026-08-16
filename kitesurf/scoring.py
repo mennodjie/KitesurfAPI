@@ -16,6 +16,12 @@ MAX_GUST_FACTOR = 1.6  # gust/mean ratio above which gustiness is scored 0
 MAX_USEFUL_PRECIP_MM = 2.0  # precip at/above this scores 0
 MAX_COMFORTABLE_WAVE_M = 1.4  # wave height at/above this scores 0
 
+# Thresholds on the max-min wind-speed spread across responding models (knots).
+# A tight spread means the models agree -- the score is a more trustworthy read
+# than the same score produced when models disagree by 8+ knots.
+CONFIDENCE_HIGH_SPREAD_KN = 3.0
+CONFIDENCE_MEDIUM_SPREAD_KN = 7.0
+
 WEIGHTS_WITH_WAVE = {"speed": 0.40, "direction": 0.30, "gust": 0.15, "precip": 0.10, "wave": 0.05}
 WEIGHTS_NO_WAVE = {"speed": 0.42, "direction": 0.33, "gust": 0.17, "precip": 0.08}
 
@@ -71,6 +77,24 @@ def _wave_score(wave_m: float | None) -> float | None:
     if wave_m is None:
         return None
     return _clamp(1.0 - wave_m / MAX_COMFORTABLE_WAVE_M)
+
+
+def gust_ratio(hour: HourPoint) -> float | None:
+    """gust/mean wind ratio -- how much punchier gusts are than the sustained wind."""
+    if hour.wind_speed_kn is None or hour.wind_gust_kn is None or hour.wind_speed_kn <= 0:
+        return None
+    return round(hour.wind_gust_kn / hour.wind_speed_kn, 2)
+
+
+def model_confidence(spread_kn: float | None) -> str:
+    """Classifies how much the 4 models agree on wind speed for this hour."""
+    if spread_kn is None:
+        return "Unknown"
+    if spread_kn <= CONFIDENCE_HIGH_SPREAD_KN:
+        return "High"
+    if spread_kn <= CONFIDENCE_MEDIUM_SPREAD_KN:
+        return "Medium"
+    return "Low"
 
 
 def score_hour(spot: Spot, hour: HourPoint) -> float:

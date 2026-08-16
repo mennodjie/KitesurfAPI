@@ -1,8 +1,9 @@
 """The 6 kitesurf spots this app covers, all in Noord-Holland / Flevoland.
 
-Wind-direction ranges are "onshore/cross-shore" windows for each spot's
-water body orientation. They're rough approximations, not local knowledge --
-verify against actual spot guides before relying on them.
+Wind-direction ranges are cross-checked against real spot guides (NKV
+spotkaart, kitesurfvereniging.nl, 35knots.com, driftbeachclub.nl, and
+kitesurf-school write-ups for each named spot) rather than guessed from
+shoreline orientation alone -- still verify locally before relying on them.
 """
 
 from dataclasses import dataclass
@@ -29,7 +30,9 @@ SPOTS: list[Spot] = [
         longitude=5.1225,
         water_body="IJmeer",
         is_coastal=False,
-        good_wind_dir=(180, 300),  # S-SW-W-NW, blows onto the Muiderberg shore
+        # N/NW/NE (E marginal) work; south is offshore and gets too gusty -- the
+        # opposite of due-south-favoring shoreline guesses. (hanglos.nl, 35knots.com)
+        good_wind_dir=(300, 100),
     ),
     Spot(
         id="strand-horst",
@@ -38,7 +41,9 @@ SPOTS: list[Spot] = [
         longitude=5.3966,
         water_body="Wolderwijd",
         is_coastal=False,
-        good_wind_dir=(200, 320),  # SW-W-NW, onto the beach
+        # N/NW/W are best; most directions are rideable here except E/SE for
+        # beginners. (driftbeachclub.nl, kitesurfvereniging.nl)
+        good_wind_dir=(245, 15),
     ),
     Spot(
         id="schellinkhout",
@@ -47,7 +52,9 @@ SPOTS: list[Spot] = [
         longitude=5.1203,
         water_body="Markermeer",
         is_coastal=False,
-        good_wind_dir=(140, 260),  # S-SE-SW, blows across the Markermeer onto the north shore
+        # W/SW/S/SE all work -- a broad, forgiving beginner spot. (kitegids.nl,
+        # kitesurfvereniging.nl)
+        good_wind_dir=(135, 270),
     ),
     Spot(
         id="ijmuiden",
@@ -56,7 +63,10 @@ SPOTS: list[Spot] = [
         longitude=4.5514,
         water_body="North Sea",
         is_coastal=True,
-        good_wind_dir=(230, 350),  # SW-W-NW onshore
+        # SW-NW is best; uniquely for this stretch of coast, S also works here
+        # because the bay shape keeps it from being straight offshore.
+        # (kitesurfvereniging.nl, letskite.ch)
+        good_wind_dir=(185, 330),
     ),
     Spot(
         id="wijk-aan-zee",
@@ -65,7 +75,10 @@ SPOTS: list[Spot] = [
         longitude=4.5981,
         water_body="North Sea",
         is_coastal=True,
-        good_wind_dir=(210, 330),  # SW-W-NW onshore
+        # SW is best (shelters behind the Noordpier), W still cross-shore; due
+        # south is offshore and explicitly not advised. (kitesurfvereniging.nl,
+        # northseakitesurfschool.nl)
+        good_wind_dir=(200, 300),
     ),
     Spot(
         id="zandvoort",
@@ -74,7 +87,9 @@ SPOTS: list[Spot] = [
         longitude=4.5327,
         water_body="North Sea",
         is_coastal=True,
-        good_wind_dir=(210, 330),  # SW-W-NW onshore
+        # A wide window: SW through W/NW/N and well into NE.
+        # (kitegids.nl, northseakitesurfschool.nl)
+        good_wind_dir=(210, 35),
     ),
 ]
 

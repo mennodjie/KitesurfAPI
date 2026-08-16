@@ -7,7 +7,7 @@ UI can require a minimum duration before calling something ridable.
 
 import pandas as pd
 
-WINDOW_COLUMNS = ["start", "end", "peak_score", "avg_score", "wind_kn", "gust_kn", "dir_deg", "hours"]
+WINDOW_COLUMNS = ["start", "end", "peak_score", "avg_score", "wind_kn", "gust_kn", "dir_deg", "hours", "confidence"]
 
 
 def compute_good_windows(spot_df: pd.DataFrame, threshold: float, min_hours: int = 3) -> pd.DataFrame:
@@ -35,6 +35,7 @@ def compute_good_windows(spot_df: pd.DataFrame, threshold: float, min_hours: int
                 "gust_kn": peak["gust_kn"],
                 "dir_deg": peak["dir_deg"],
                 "hours": len(grp),
+                "confidence": peak.get("confidence", "Unknown"),
             }
         )
     return pd.DataFrame(windows, columns=WINDOW_COLUMNS)

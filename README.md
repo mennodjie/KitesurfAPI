@@ -1,13 +1,17 @@
 # KiteScout
 
-A weather-consensus ranking for 17 kitesurf spots across the
-Netherlands — Noord-Holland, Zuid-Holland, Zeeland, and the IJsselmeer/
-Friesland lakes. A sidebar filter lets you narrow the view down to
-just the spots you care about.
+A weather-consensus ranking for 6 kitesurf spots in Noord-Holland and
+Flevoland: Muiderberg, Strand Horst, Schellinkhout, IJmuiden, Wijk aan
+Zee, Zandvoort. Wind-direction preferences per spot are cross-checked
+against real kitesurf spot guides, not just shoreline-orientation
+guesses (see `kitesurf/spots.py`).
 
 Combines wind data from 4 open weather models (ECMWF, GFS, ICON, KNMI
 HARMONIE-AROME via Open-Meteo) plus marine wave data for the North Sea
-spots, into a 0-100 score per hour for the next 7 days.
+spots, into a 0-100 score per hour for the next 7 days. Also pulls in,
+where relevant: live station observations (actual current wind, not
+forecast), tide times for the North Sea spots, and a running log of
+how far the forecast has been from what actually happened.
 
 Accuracy degrades the further out you look — treat days 4-7 as a rough
 heads-up, not a plan. KNMI HARMONIE-AROME in particular only forecasts
@@ -87,6 +91,34 @@ Works with any SMTP provider. For Gmail: use smtp.gmail.com, port 587,
 and a Google Account [App Password](https://myaccount.google.com/apppasswords)
 as `SMTP_PASSWORD` (not your normal password — Gmail requires 2FA to be
 on and an app password for third-party SMTP).
+
+## Extra data sources
+
+Beyond the Open-Meteo forecast, the app pulls in a few free, keyless
+sources when relevant:
+
+- **Live station observations** (`kitesurf/observations.py`) — the
+  nearest [Buienradar](https://www.buienradar.nl) weather station's
+  *actual* current wind/gust/direction, shown alongside the forecast
+  per spot. KNMI's own live-observation API is more authoritative but
+  requires registering for an API key, which didn't fit this project's
+  keyless approach -- Buienradar is a free stand-in.
+- **Tide times** (`kitesurf/tides.py`) — for the three North Sea spots
+  (IJmuiden, Wijk aan Zee, Zandvoort), next high/low tide from
+  [Rijkswaterstaat](https://rijkswaterstaatdata.nl)'s open water-level
+  API, using the one nearby station with live telemetry
+  (`ijmuiden.buitenhaven`) as a shared reference for all three. The
+  inland spots (IJmeer/Markermeer/Wolderwijd) are managed, non-tidal
+  water, so tides don't apply there.
+- **Forecast accuracy** (`kitesurf/accuracy.py`) — every ~3 hours,
+  `scripts/log_accuracy.py` compares the forecast for "now" against
+  the live observation fetched at the same time, and appends the
+  difference to `data/accuracy_log.jsonl`. This is a *nowcast* check
+  (forecast-for-now vs. actual-now), not a measure of how good a
+  forecast was days in advance -- that would need storing predictions
+  made ahead of time and revisiting them later, which this project
+  doesn't do. Each spot's detail view shows a running average once it
+  has 5+ logged samples.
 
 ## Run it (API)
 

@@ -1,6 +1,6 @@
 import unittest
 
-from kitesurf.scoring import score_hour
+from kitesurf.scoring import gust_ratio, model_confidence, score_hour
 from kitesurf.spots import SPOTS_BY_ID
 from kitesurf.weather import HourPoint
 
@@ -61,6 +61,38 @@ class ScoringTests(unittest.TestCase):
         calm = score_hour(self.wijk_aan_zee, hour(wave_height_m=0.3))
         rough = score_hour(self.wijk_aan_zee, hour(wave_height_m=2.0))
         self.assertGreater(calm, rough)
+
+
+class GustRatioTests(unittest.TestCase):
+    def test_normal_case(self):
+        self.assertEqual(gust_ratio(hour(wind_speed_kn=20, wind_gust_kn=25)), 1.25)
+
+    def test_none_when_no_wind(self):
+        self.assertIsNone(gust_ratio(hour(wind_speed_kn=0, wind_gust_kn=10)))
+
+    def test_none_when_missing_data(self):
+        self.assertIsNone(gust_ratio(hour(wind_speed_kn=None, wind_gust_kn=10)))
+        self.assertIsNone(gust_ratio(hour(wind_speed_kn=10, wind_gust_kn=None)))
+
+
+class ModelConfidenceTests(unittest.TestCase):
+    def test_tight_spread_is_high(self):
+        self.assertEqual(model_confidence(2.0), "High")
+
+    def test_moderate_spread_is_medium(self):
+        self.assertEqual(model_confidence(5.0), "Medium")
+
+    def test_wide_spread_is_low(self):
+        self.assertEqual(model_confidence(12.0), "Low")
+
+    def test_missing_spread_is_unknown(self):
+        self.assertEqual(model_confidence(None), "Unknown")
+
+    def test_boundaries(self):
+        self.assertEqual(model_confidence(3.0), "High")
+        self.assertEqual(model_confidence(3.1), "Medium")
+        self.assertEqual(model_confidence(7.0), "Medium")
+        self.assertEqual(model_confidence(7.1), "Low")
 
 
 if __name__ == "__main__":
