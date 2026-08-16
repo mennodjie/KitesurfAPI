@@ -9,6 +9,7 @@ from pathlib import Path
 
 import altair as alt
 import pandas as pd
+import pydeck as pdk
 import streamlit as st
 
 from kitesurf.accuracy import MIN_SAMPLES_FOR_SUMMARY, load_log, summarize
@@ -395,6 +396,103 @@ else:
             hide_index=True,
             width="stretch",
         )
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Map -- one marker per spot: colored by tier, labeled with the score, and
+# an arrow showing which way the wind blows at that spot's best qualifying
+# window in the current filter (Day picker + score/duration sliders).
+# ---------------------------------------------------------------------------
+map_title = f"Map — {fmt_day(selected_day)}" if selected_day else "Map — best window in view"
+st.markdown(f'<div class="section-title">{map_title}</div>', unsafe_allow_html=True)
+
+TIER_RGB = {
+    "GO": [15, 118, 110],
+    "PROMISING": [180, 83, 9],
+    "MARGINAL": [154, 52, 18],
+    "SKIP": [100, 116, 139],
+}
+
+map_rows = []
+for spot in SPOTS:
+    windows = windows_by_spot[spot.id]
+    if windows.empty:
+        tier, score, arrow, detail = "SKIP", 0.0, "", "No good window in this filter"
+    else:
+        best = windows.loc[windows["peak_score"].idxmax()]
+        tier = score_style(best["peak_score"])["tier"]
+        score = float(best["peak_score"])
+        arrow = wind_arrow(best["dir_deg"])
+        detail = f"{fmt_day(best['start'].date())} {fmt_range(best['start'], best['end'])} · {best['wind_kn']:.0f} kn {dir_label(best['dir_deg'])}"
+    map_rows.append(
+        {
+            "spot": spot.name,
+            "lat": spot.latitude,
+            "lon": spot.longitude,
+            "score": round(score),
+            "score_label": str(round(score)),
+            "arrow_label": arrow,
+            "tier": tier,
+            "detail": detail,
+            "color": TIER_RGB[tier],
+            "radius": 700 + score * 25,
+        }
+    )
+map_df = pd.DataFrame(map_rows)
+
+map_dot_layer = pdk.Layer(
+    "ScatterplotLayer",
+    data=map_df,
+    get_position=["lon", "lat"],
+    get_fill_color="color",
+    get_radius="radius",
+    pickable=True,
+    opacity=0.85,
+    stroked=True,
+    get_line_color=[255, 255, 255],
+    line_width_min_pixels=1,
+)
+map_score_layer = pdk.Layer(
+    "TextLayer",
+    data=map_df,
+    get_position=["lon", "lat"],
+    get_text="score_label",
+    get_size=18,
+    get_color=[255, 255, 255, 255],
+    get_text_anchor="'middle'",
+    get_alignment_baseline="'center'",
+    font_weight=700,
+    pickable=False,
+)
+map_arrow_layer = pdk.Layer(
+    "TextLayer",
+    data=map_df,
+    get_position=["lon", "lat"],
+    get_text="arrow_label",
+    get_size=22,
+    get_color=[255, 255, 255, 255],
+    get_text_anchor="'middle'",
+    get_alignment_baseline="'bottom'",
+    get_pixel_offset=[0, -22],
+    pickable=False,
+)
+map_view_state = pdk.ViewState(
+    latitude=map_df["lat"].mean(),
+    longitude=map_df["lon"].mean(),
+    zoom=9,
+)
+st.pydeck_chart(
+    pdk.Deck(
+        layers=[map_dot_layer, map_score_layer, map_arrow_layer],
+        initial_view_state=map_view_state,
+        tooltip={
+            "html": "<b>{spot}</b><br/>Score: {score}<br/>{detail}",
+            "style": {"backgroundColor": "#0f172a", "color": "white"},
+        },
+    ),
+    height=420,
+)
 
 st.divider()
 

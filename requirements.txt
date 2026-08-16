@@ -5,3 +5,4 @@ pydantic>=2.9
 streamlit>=1.38
 pandas>=2.2
 altair>=5.0
+pydeck>=0.9
