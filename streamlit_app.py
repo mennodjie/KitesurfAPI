@@ -42,24 +42,24 @@ st.html(
 )
 
 COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
-WATER_LABEL = {True: "Zee", False: "Binnenwater"}
-NL_WEEKDAYS = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"]
-NL_MONTHS = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
+WATER_LABEL = {True: "Sea", False: "Inland water"}
+WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 DEFAULT_GOOD_WINDOW_MIN_HOURS = 3
-METRIC_OPTIONS = {"Score": ("score", "Score (0-100)"), "Wind": ("wind_kn", "Wind (kn)"), "Neerslag": ("precip_mm", "Neerslag (mm)")}
+METRIC_OPTIONS = {"Score": ("score", "Score (0-100)"), "Wind": ("wind_kn", "Wind (kn)"), "Rain": ("precip_mm", "Rain (mm)")}
 
 # Muted, solid status colors (white text) -- reads consistently in both light and dark mode
 # since each chip carries its own fixed background rather than relying on the page theme.
 TIER_COLORS = {
     "GO": "#0f766e",
-    "KANSRIJK": "#b45309",
-    "TWIJFEL": "#9a3412",
-    "NIKS": "#475569",
+    "PROMISING": "#b45309",
+    "MARGINAL": "#9a3412",
+    "SKIP": "#475569",
 }
 
 
 def fmt_day(d) -> str:
-    return f"{NL_WEEKDAYS[d.weekday()]} {d.day} {NL_MONTHS[d.month - 1]}"
+    return f"{WEEKDAYS[d.weekday()]} {d.day} {MONTHS[d.month - 1]}"
 
 
 def fmt_range(start, end) -> str:
@@ -78,11 +78,11 @@ def score_style(score: float) -> dict:
     if score >= 75:
         tier = "GO"
     elif score >= 50:
-        tier = "KANSRIJK"
+        tier = "PROMISING"
     elif score >= 25:
-        tier = "TWIJFEL"
+        tier = "MARGINAL"
     else:
-        tier = "NIKS"
+        tier = "SKIP"
     return {"tier": tier, "color": TIER_COLORS[tier]}
 
 
@@ -161,7 +161,7 @@ st.markdown(
 )
 
 
-@st.cache_data(ttl=900, show_spinner="Weermodellen ophalen...")
+@st.cache_data(ttl=900, show_spinner="Fetching weather models...")
 def load_all_forecasts():
     forecasts = asyncio.run(get_forecasts(SPOTS))
     rows = []
@@ -193,7 +193,7 @@ def load_all_forecasts():
 
 
 df, model_status, fetched_at = load_all_forecasts()
-updated_label = f"Bijgewerkt {fetched_at.day} {NL_MONTHS[fetched_at.month - 1]} {fetched_at.strftime('%H:%M')}"
+updated_label = f"Updated {fetched_at.day} {MONTHS[fetched_at.month - 1]} {fetched_at.strftime('%H:%M')}"
 
 hero_col, info_col = st.columns([0.85, 0.15])
 with hero_col:
@@ -201,65 +201,74 @@ with hero_col:
         f"""
         <div class="kite-hero">
             <h1>KiteScout</h1>
-            <div class="kite-kpis">6 spots &middot; 4 modellen &middot; 7 dagen &middot; {updated_label}</div>
+            <div class="kite-kpis">{len(SPOTS)} spots &middot; 4 models &middot; 7 days &middot; {updated_label}</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 with info_col:
-    with st.popover("Uitleg", width="stretch"):
+    with st.popover("How it works", width="stretch"):
         st.markdown(
             f"""
-**Hoe wordt de score (0-100) berekend?**
+**How is the score (0-100) calculated?**
 
-Elk uur krijgt een gewogen score op basis van vijf factoren:
+Every hour gets a weighted score based on five factors:
 
-- **Windsnelheid (~40%)** — piek tussen 15-28 knopen. Onder 9 of boven 38 knopen is het onrijdbaar en wordt de score altijd 0.
-- **Windrichting (~30%)** — hoe dicht de wind bij de ideale hoek voor die specifieke spot zit (elke waterplas ligt anders gedraaid).
-- **Vlagerigheid (~15%)** — hoe veel de vlagen afwijken van de gemiddelde windsnelheid; grillige wind scoort lager.
-- **Neerslag (~10%)** — regen trekt de score omlaag.
-- **Golfhoogte (~5%, alleen zeespots)** — ruwer water bij IJmuiden, Wijk aan Zee en Zandvoort scoort lager. Voor de meren telt dit niet mee.
+- **Wind speed (~40%)** — peaks between 15-28 knots. Below 9 or above 38 knots it's unridable and the score is always 0.
+- **Wind direction (~30%)** — how close the wind is to the ideal angle for that specific spot (every stretch of water faces a different way).
+- **Gustiness (~15%)** — how much the gusts deviate from the average wind speed; erratic wind scores lower.
+- **Rain (~10%)** — rain drags the score down.
+- **Wave height (~5%, sea spots only)** — rougher water at the North Sea spots scores lower. Doesn't count for the lakes.
 
-**Waarom telt een losse piekuur niet altijd mee?** Één goed uur tussen twee slechte uren is geen sessie. Deze app kijkt daarom naar **aaneengesloten vensters** boven de gekozen score — hoe lang dat venster minimaal moet zijn stel je zelf in via de zijbalk (standaard {DEFAULT_GOOD_WINDOW_MIN_HOURS} uur). Alleen die vensters worden als "goed" geteld, overal in de app.
+**Why doesn't a single good hour always count?** One good hour between two bad ones isn't a session. This app looks for **consecutive windows** above the chosen score — how long that window needs to be is up to you in the sidebar (default {DEFAULT_GOOD_WINDOW_MIN_HOURS} hours). Only those windows count as "good," everywhere in the app.
 
-**Statusniveaus:** GO (75+) · KANSRIJK (50-74) · TWIJFEL (25-49) · NIKS (<25)
+**Status levels:** GO (75+) · PROMISING (50-74) · MARGINAL (25-49) · SKIP (<25)
 
-**Databron:** vier onafhankelijke weermodellen (ECMWF, GFS, ICON, KNMI HARMONIE-AROME) via Open-Meteo — de score gebruikt de mediaan, zodat één afwijkend model de uitkomst niet domineert. Golfdata komt van Open-Meteo Marine. KNMI HARMONIE-AROME dekt doorgaans maar 2-3 dagen vooruit; daarna vullen de overige modellen aan.
+**Data source:** four independent weather models (ECMWF, GFS, ICON, KNMI HARMONIE-AROME) via Open-Meteo — the score uses the median, so one outlier model doesn't dominate the result. Wave data comes from Open-Meteo Marine. KNMI HARMONIE-AROME usually only covers 2-3 days ahead; the other models fill in beyond that.
 
-Dit is een **planningshulp, geen veiligheidsadvies**. Check altijd zelf lokale wind, stroming, getij en spotregels.
+This is a **planning aid, not safety advice**. Always check local wind, current, tide, and spot rules yourself.
             """
         )
 
 if df.empty:
-    st.error("Geen data ontvangen van Open-Meteo. Probeer het later opnieuw.")
+    st.error("No data received from Open-Meteo. Please try again later.")
     st.stop()
 
 st.sidebar.header("Filters")
-only_daylight = st.sidebar.checkbox("Alleen overdag (07:00-21:00)", value=True)
+spot_names_all = [s.name for s in SPOTS]
+st.session_state.setdefault("active_spots", spot_names_all)
+active_spot_names = st.sidebar.multiselect("Spots to show", spot_names_all, key="active_spots")
+active_spots = [s for s in SPOTS if s.name in set(active_spot_names)]
+
+only_daylight = st.sidebar.checkbox("Daytime only (07:00-21:00)", value=True)
 good_window_min_hours = st.sidebar.slider(
-    "Minimale venster-duur (uur)",
+    "Minimum window length (hours)",
     1,
     6,
     DEFAULT_GOOD_WINDOW_MIN_HOURS,
-    help="Hoe lang de wind minimaal aaneengesloten boven de score moet blijven om als een 'goed venster' te tellen.",
+    help="How long the wind must stay consecutively above the score to count as a 'good window'.",
 )
 min_score = st.sidebar.slider(
-    "Minimale score voor een 'goed venster'",
+    "Minimum score for a 'good window'",
     0,
     100,
     75,
-    help=f"Alleen aaneengesloten vensters van minimaal {good_window_min_hours} uur boven deze score tellen als 'goed'.",
+    help=f"Only windows of at least {good_window_min_hours} consecutive hours above this score count as 'good'.",
 )
-st.sidebar.caption(f"Vereist ≥{good_window_min_hours} uur op rij boven deze score. GO 75+ · KANSRIJK 50-74 · TWIJFEL 25-49 · NIKS <25")
+st.sidebar.caption(f"Requires ≥{good_window_min_hours}h in a row above this score. GO 75+ · PROMISING 50-74 · MARGINAL 25-49 · SKIP <25")
 
-view = df.copy()
+if not active_spots:
+    st.warning("No spots selected — pick at least one in the sidebar to see forecasts.")
+    st.stop()
+
+view = df[df["spot_id"].isin([s.id for s in active_spots])].copy()
 if only_daylight:
     view = view[(view["time"].dt.hour >= 7) & (view["time"].dt.hour <= 21)]
 
 all_days = sorted(view["time"].dt.date.unique())
-ALL_DAYS_LABEL = "Alle dagen"
+ALL_DAYS_LABEL = "All days"
 day_options = [ALL_DAYS_LABEL] + [fmt_day(d) for d in all_days]
-day_choice = st.segmented_control("Dag", day_options, default=ALL_DAYS_LABEL, key="day_filter")
+day_choice = st.segmented_control("Day", day_options, default=ALL_DAYS_LABEL, key="day_filter")
 selected_day = None
 if day_choice and day_choice != ALL_DAYS_LABEL:
     selected_day = all_days[day_options.index(day_choice) - 1]
@@ -272,7 +281,7 @@ unique_days = sorted(view["time"].dt.date.unique())
 # ---------------------------------------------------------------------------
 windows_by_spot = {}
 all_windows = []
-for spot in SPOTS:
+for spot in active_spots:
     spot_df = view[view["spot_id"] == spot.id]
     w = compute_good_windows(spot_df, threshold=min_score, min_hours=good_window_min_hours)
     windows_by_spot[spot.id] = w
@@ -285,14 +294,14 @@ for spot in SPOTS:
 all_windows_df = pd.concat(all_windows, ignore_index=True) if all_windows else pd.DataFrame()
 
 # ---------------------------------------------------------------------------
-# 1. Beste sessies
+# 1. Best sessions
 # ---------------------------------------------------------------------------
-st.markdown('<div class="section-title">Beste sessies</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Best sessions</div>', unsafe_allow_html=True)
 
 if all_windows_df.empty:
     st.info(
-        f"Geen vensters van {good_window_min_hours}+ uur boven score {min_score} gevonden. "
-        "Verlaag de slider in de zijbalk om minder strikte sessies te zien."
+        f"No windows of {good_window_min_hours}+ hours above score {min_score} found. "
+        "Lower the slider in the sidebar to see less strict sessions."
     )
 else:
     ranked = all_windows_df.sort_values("peak_score", ascending=False).reset_index(drop=True)
@@ -310,28 +319,28 @@ else:
                     <div class="tierlabel" style="color:{s['color']};">{s['tier']}</div>
                     <div class="bigscore">{row['peak_score']:.0f}</div>
                     <div class="meta">{fmt_day(row['start'].date())} &middot; {fmt_range(row['start'], row['end'])}</div>
-                    <div class="meta">{row['wind_kn']:.0f} kn &middot; {compass(row['dir_deg'])} &middot; {row['hours']:.0f}u</div>
+                    <div class="meta">{row['wind_kn']:.0f} kn &middot; {compass(row['dir_deg'])} &middot; {row['hours']:.0f}h</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
-    with st.expander(f"Alle {len(ranked)} goede vensters (tabel)", expanded=False):
+    with st.expander(f"All {len(ranked)} good windows (table)", expanded=False):
         table = ranked.copy()
-        table["dag"] = table["start"].apply(lambda t: fmt_day(t.date()))
-        table["venster"] = table.apply(lambda r: fmt_range(r["start"], r["end"]), axis=1)
-        table["richting"] = table["dir_deg"].apply(compass)
+        table["day"] = table["start"].apply(lambda t: fmt_day(t.date()))
+        table["window"] = table.apply(lambda r: fmt_range(r["start"], r["end"]), axis=1)
+        table["direction"] = table["dir_deg"].apply(compass)
         st.dataframe(
-            table[["dag", "spot", "venster", "hours", "peak_score", "avg_score", "wind_kn", "richting"]],
+            table[["day", "spot", "window", "hours", "peak_score", "avg_score", "wind_kn", "direction"]],
             column_config={
-                "dag": "Dag",
+                "day": "Day",
                 "spot": "Spot",
-                "venster": "Venster",
-                "hours": st.column_config.NumberColumn("Duur (u)", format="%d"),
-                "peak_score": st.column_config.ProgressColumn("Piekscore", min_value=0, max_value=100, format="%.0f"),
-                "avg_score": st.column_config.NumberColumn("Gem. score", format="%.0f"),
+                "window": "Window",
+                "hours": st.column_config.NumberColumn("Duration (h)", format="%d"),
+                "peak_score": st.column_config.ProgressColumn("Peak score", min_value=0, max_value=100, format="%.0f"),
+                "avg_score": st.column_config.NumberColumn("Avg score", format="%.0f"),
                 "wind_kn": st.column_config.NumberColumn("Wind (kn)", format="%.0f"),
-                "richting": "Richting",
+                "direction": "Direction",
             },
             hide_index=True,
             width="stretch",
@@ -340,10 +349,10 @@ else:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# 2. Alle spots, komende dagen (grid overview, exact dates)
+# 2. All spots, upcoming days (grid overview, exact dates)
 # ---------------------------------------------------------------------------
 grid_days = unique_days
-grid_title = f"Alle spots — {fmt_day(selected_day)}" if selected_day else f"Alle spots — komende {len(grid_days)} dagen"
+grid_title = f"All spots — {fmt_day(selected_day)}" if selected_day else f"All spots — next {len(grid_days)} days"
 st.markdown(f'<div class="section-title">{grid_title}</div>', unsafe_allow_html=True)
 
 
@@ -353,7 +362,7 @@ def _select_spot(spot_name: str) -> None:
 
 
 with st.container(horizontal=True, key="spot_grid", gap="medium"):
-    for spot in SPOTS:
+    for spot in active_spots:
         windows = windows_by_spot[spot.id]
         with st.container(border=True, width=380):
             st.markdown(
@@ -369,7 +378,7 @@ with st.container(horizontal=True, key="spot_grid", gap="medium"):
                     strip_html += (
                         f'<div class="day-col"><div class="day-label">{fmt_day(d)}</div>'
                         f'<div style="margin-top:6px;">{score_pill(0)}</div>'
-                        f'<div class="day-meta">geen {good_window_min_hours}u+</div></div>'
+                        f'<div class="day-meta">no {good_window_min_hours}h+</div></div>'
                     )
                     continue
                 best = day_windows.loc[day_windows["peak_score"].idxmax()]
@@ -382,7 +391,7 @@ with st.container(horizontal=True, key="spot_grid", gap="medium"):
             strip_html += "</div>"
             st.markdown(strip_html, unsafe_allow_html=True)
             st.button(
-                f"Bekijk {spot.name} →",
+                f"View {spot.name} →",
                 key=f"open_{spot.id}",
                 width="stretch",
                 on_click=_select_spot,
@@ -405,14 +414,15 @@ if st.session_state.get("scroll_to_spot"):
         unsafe_allow_javascript=True,
     )
 
-spot_name_options = [s.name for s in SPOTS]
-st.session_state.setdefault("spot_selector", spot_name_options[0])
-chosen_name = st.segmented_control("Kies een spot", spot_name_options, key="spot_selector")
-spot = SPOTS_BY_NAME.get(chosen_name, SPOTS[0])
+spot_name_options = [s.name for s in active_spots]
+if st.session_state.get("spot_selector") not in spot_name_options:
+    st.session_state["spot_selector"] = spot_name_options[0]
+chosen_name = st.segmented_control("Choose a spot", spot_name_options, key="spot_selector")
+spot = SPOTS_BY_NAME.get(chosen_name, active_spots[0])
 
 spot_df = view[view["spot_id"] == spot.id].sort_values("time")
 if spot_df.empty:
-    st.info("Geen uren binnen het geselecteerde filter.")
+    st.info("No hours within the selected filter.")
 else:
     windows = windows_by_spot[spot.id]
 
@@ -421,10 +431,10 @@ else:
         if windows.empty:
             st.markdown(
                 f"""
-                <div class="hero-stat" style="--accent-color:{TIER_COLORS['NIKS']};">
-                    <div class="tierlabel" style="color:{TIER_COLORS['NIKS']};">NIKS</div>
+                <div class="hero-stat" style="--accent-color:{TIER_COLORS['SKIP']};">
+                    <div class="tierlabel" style="color:{TIER_COLORS['SKIP']};">SKIP</div>
                     <div class="num">–</div>
-                    <div class="sub">Geen venster van {good_window_min_hours}+ uur boven score {min_score} deze week.</div>
+                    <div class="sub">No window of {good_window_min_hours}+ hours above score {min_score} this week.</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -438,23 +448,23 @@ else:
                     <div class="tierlabel" style="color:{s['color']};">{s['tier']}</div>
                     <div class="num">{best['peak_score']:.0f}</div>
                     <div class="sub">{fmt_day(best['start'].date())} &middot; {fmt_range(best['start'], best['end'])}</div>
-                    <div class="sub">{best['wind_kn']:.0f} kn &middot; {compass(best['dir_deg'])} &middot; {best['hours']:.0f}u aaneengesloten</div>
+                    <div class="sub">{best['wind_kn']:.0f} kn &middot; {compass(best['dir_deg'])} &middot; {best['hours']:.0f}h in a row</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
     with metrics_col:
         c1, c2 = st.columns(2)
-        c1.metric(f"Goede vensters (≥{good_window_min_hours}u)", len(windows))
+        c1.metric(f"Good windows (≥{good_window_min_hours}h)", len(windows))
         good_hours = int(windows["hours"].sum()) if not windows.empty else 0
-        c2.metric("Totaal goede uren", good_hours, "deze week")
+        c2.metric("Total good hours", good_hours, "this week")
 
-    metric_choice = st.segmented_control("Toon op de grafiek", list(METRIC_OPTIONS.keys()), default="Score", key=f"metric_{spot.id}")
+    metric_choice = st.segmented_control("Show on the chart", list(METRIC_OPTIONS.keys()), default="Score", key=f"metric_{spot.id}")
     metric_col, metric_title = METRIC_OPTIONS.get(metric_choice, METRIC_OPTIONS["Score"])
 
     chart_df = spot_df[["time", metric_col]].rename(columns={metric_col: "value"})
     base = alt.Chart(chart_df).encode(
-        x=alt.X("time:T", title=None, axis=alt.Axis(format="%a %d/%m %Hu", labelAngle=-40)),
+        x=alt.X("time:T", title=None, axis=alt.Axis(format="%a %d/%m %Hh", labelAngle=-40)),
     )
     area = base.mark_area(opacity=0.18, color="#0f766e").encode(y=alt.Y("value:Q", title=metric_title))
     line = base.mark_line(color="#0f766e", strokeWidth=2).encode(y=alt.Y("value:Q", title=metric_title))
@@ -470,10 +480,10 @@ else:
             if windows.empty or day_windows.empty:
                 st.markdown(
                     f"""
-                    <div class="day-card" style="--accent-color:{TIER_COLORS['NIKS']};">
+                    <div class="day-card" style="--accent-color:{TIER_COLORS['SKIP']};">
                         <div class="dow">{fmt_day(d)}</div>
                         <div class="num">0</div>
-                        <div class="sub">geen venster</div>
+                        <div class="sub">no window</div>
                     </div>
                     """,
                     unsafe_allow_html=True,
@@ -493,31 +503,31 @@ else:
                 )
 
     if not windows.empty:
-        with st.expander("Goede vensters deze week", expanded=False):
+        with st.expander("Good windows this week", expanded=False):
             table = windows.copy()
-            table["dag"] = table["start"].apply(lambda t: fmt_day(t.date()))
-            table["venster"] = table.apply(lambda r: fmt_range(r["start"], r["end"]), axis=1)
-            table["richting"] = table["dir_deg"].apply(compass)
+            table["day"] = table["start"].apply(lambda t: fmt_day(t.date()))
+            table["window"] = table.apply(lambda r: fmt_range(r["start"], r["end"]), axis=1)
+            table["direction"] = table["dir_deg"].apply(compass)
             st.dataframe(
-                table[["dag", "venster", "hours", "peak_score", "avg_score", "wind_kn", "richting"]],
+                table[["day", "window", "hours", "peak_score", "avg_score", "wind_kn", "direction"]],
                 column_config={
-                    "dag": "Dag",
-                    "venster": "Venster",
-                    "hours": st.column_config.NumberColumn("Duur (u)", format="%d"),
-                    "peak_score": st.column_config.ProgressColumn("Piekscore", min_value=0, max_value=100, format="%.0f"),
-                    "avg_score": st.column_config.NumberColumn("Gem. score", format="%.0f"),
+                    "day": "Day",
+                    "window": "Window",
+                    "hours": st.column_config.NumberColumn("Duration (h)", format="%d"),
+                    "peak_score": st.column_config.ProgressColumn("Peak score", min_value=0, max_value=100, format="%.0f"),
+                    "avg_score": st.column_config.NumberColumn("Avg score", format="%.0f"),
                     "wind_kn": st.column_config.NumberColumn("Wind (kn)", format="%.0f"),
-                    "richting": "Richting",
+                    "direction": "Direction",
                 },
                 hide_index=True,
                 width="stretch",
             )
 
-    with st.expander("Volledige uurdata", expanded=False):
+    with st.expander("Full hourly data", expanded=False):
         st.dataframe(
             spot_df[["time", "score", "wind_kn", "gust_kn", "dir_deg", "precip_mm", "wave_m"]],
             column_config={
-                "time": st.column_config.DatetimeColumn("Tijd", format="ddd D MMM HH:mm"),
+                "time": st.column_config.DatetimeColumn("Time", format="ddd D MMM HH:mm"),
                 "score": st.column_config.ProgressColumn("Score", min_value=0, max_value=100, format="%.0f"),
             },
             hide_index=True,
@@ -528,7 +538,7 @@ else:
     statuses = model_status.get(spot.id, {})
     ok = [m for m, up in statuses.items() if up]
     down = [m for m, up in statuses.items() if not up]
-    status_line = f"Modellen actief: {', '.join(ok) if ok else 'geen'}"
+    status_line = f"Active models: {', '.join(ok) if ok else 'none'}"
     if down:
-        status_line += f" · uitgevallen: {', '.join(down)}"
+        status_line += f" · down: {', '.join(down)}"
     st.caption(status_line)

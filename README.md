@@ -1,8 +1,9 @@
 # KiteScout
 
-A weather-consensus ranking for 6 kitesurf spots in Noord-Holland and
-Flevoland: Muiderberg, Strand Horst, Schellinkhout, IJmuiden, Wijk aan
-Zee, Zandvoort.
+A weather-consensus ranking for 17 kitesurf spots across the
+Netherlands — Noord-Holland, Zuid-Holland, Zeeland, and the IJsselmeer/
+Friesland lakes. A sidebar filter lets you narrow the view down to
+just the spots you care about.
 
 Combines wind data from 4 open weather models (ECMWF, GFS, ICON, KNMI
 HARMONIE-AROME via Open-Meteo) plus marine wave data for the North Sea
