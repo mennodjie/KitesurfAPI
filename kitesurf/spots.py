@@ -43,8 +43,8 @@ SPOTS: list[Spot] = [
     Spot(
         id="schellinkhout",
         name="Schellinkhout",
-        latitude=52.5661,
-        longitude=5.2814,
+        latitude=52.6317,
+        longitude=5.1203,
         water_body="Markermeer",
         is_coastal=False,
         good_wind_dir=(140, 260),  # S-SE-SW, blows across the Markermeer onto the north shore

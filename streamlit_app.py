@@ -370,6 +370,7 @@ for spot in SPOTS:
             "lat": spot.latitude,
             "lon": spot.longitude,
             "score": round(score),
+            "score_label": str(round(score)),
             "tier": tier,
             "detail": detail,
             "color": TIER_RGB[tier],
@@ -390,6 +391,18 @@ map_layer = pdk.Layer(
     get_line_color=[255, 255, 255],
     line_width_min_pixels=1,
 )
+score_label_layer = pdk.Layer(
+    "TextLayer",
+    data=map_df,
+    get_position=["lon", "lat"],
+    get_text="score_label",
+    get_size=18,
+    get_color=[255, 255, 255, 255],
+    get_text_anchor="'middle'",
+    get_alignment_baseline="'center'",
+    font_weight=700,
+    pickable=False,
+)
 map_view_state = pdk.ViewState(
     latitude=map_df["lat"].mean(),
     longitude=map_df["lon"].mean(),
@@ -397,7 +410,7 @@ map_view_state = pdk.ViewState(
 )
 st.pydeck_chart(
     pdk.Deck(
-        layers=[map_layer],
+        layers=[map_layer, score_label_layer],
         initial_view_state=map_view_state,
         tooltip={
             "html": "<b>{spot}</b><br/>Score: {score}<br/>{detail}",
