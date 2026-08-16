@@ -82,6 +82,34 @@ def compass(deg):
     return COMPASS[round(deg / 22.5) % 16]
 
 
+# Arrow points the direction the wind is blowing TOWARD (deg is meteorological
+# "from"), which is the intuitive way to read it at a glance -- the compass
+# abbreviation next to it keeps the standard "from" convention for anyone
+# who wants the precise reading.
+WIND_ARROWS = ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"]
+
+
+def wind_arrow(deg):
+    if deg is None or pd.isna(deg):
+        return ""
+    return WIND_ARROWS[round(((deg + 180) % 360) / 45) % 8]
+
+
+def dir_label(deg):
+    """Arrow + compass abbreviation, e.g. '↗ NW'. Plain text -- safe in HTML and dataframes alike."""
+    if deg is None or pd.isna(deg):
+        return "–"
+    return f"{wind_arrow(deg)} {compass(deg)}"
+
+
+CONFIDENCE_DOTS = {"High": "●●●", "Medium": "●●○", "Low": "●○○", "Unknown": "—"}
+
+
+def confidence_label(confidence: str) -> str:
+    """Signal-strength-style dots, faster to scan than the word alone."""
+    return f"{CONFIDENCE_DOTS.get(confidence, '—')} {confidence}"
+
+
 def score_style(score: float) -> dict:
     if score >= 75:
         tier = "GO"
@@ -339,7 +367,7 @@ else:
                     <div class="tierlabel" style="color:{s['color']};">{s['tier']}</div>
                     <div class="bigscore">{row['peak_score']:.0f}</div>
                     <div class="meta">{fmt_day(row['start'].date())} &middot; {fmt_range(row['start'], row['end'])}</div>
-                    <div class="meta">{row['wind_kn']:.0f} kn &middot; {compass(row['dir_deg'])} &middot; {row['hours']:.0f}h</div>
+                    <div class="meta">{row['wind_kn']:.0f} kn &middot; {dir_label(row['dir_deg'])} &middot; {row['hours']:.0f}h</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -349,7 +377,8 @@ else:
         table = ranked.copy()
         table["day"] = table["start"].apply(lambda t: fmt_day(t.date()))
         table["window"] = table.apply(lambda r: fmt_range(r["start"], r["end"]), axis=1)
-        table["direction"] = table["dir_deg"].apply(compass)
+        table["direction"] = table["dir_deg"].apply(dir_label)
+        table["confidence"] = table["confidence"].apply(confidence_label)
         st.dataframe(
             table[["day", "spot", "window", "hours", "peak_score", "avg_score", "wind_kn", "direction", "confidence"]],
             column_config={
@@ -406,7 +435,7 @@ with st.container(horizontal=True, key="spot_grid", gap="medium"):
                 strip_html += (
                     f'<div class="day-col"><div class="day-label">{fmt_day(d)}</div>'
                     f'<div style="margin-top:6px;">{score_pill(best["peak_score"])}</div>'
-                    f'<div class="day-meta">{fmt_range(best["start"], best["end"])}<br>{best["wind_kn"]:.0f}kn {compass(best["dir_deg"])}</div>'
+                    f'<div class="day-meta">{fmt_range(best["start"], best["end"])}<br>{best["wind_kn"]:.0f}kn {dir_label(best["dir_deg"])}</div>'
                     f"</div>"
                 )
             strip_html += "</div>"
@@ -451,20 +480,21 @@ else:
     live_bits = []
     if live_obs is not None:
         live_bits.append(
-            f"Live now: {live_obs.wind_kn:.0f} kn, gust {live_obs.gust_kn:.0f} kn, {compass(live_obs.dir_deg)} "
+            f"Live now: {live_obs.wind_kn:.0f} kn, gust {live_obs.gust_kn:.0f} kn, {dir_label(live_obs.dir_deg)} "
             f"— {live_obs.station_name} ({live_obs.distance_km:.0f} km away)"
         )
     if spot.is_coastal:
         tide_events = [e for e in load_tide_events() if e.time >= pd.Timestamp.now(tz=e.time.tz)]
         next_high = next((e for e in tide_events if e.kind == "high"), None)
         next_low = next((e for e in tide_events if e.kind == "low"), None)
-        tide_bits = []
-        if next_high is not None:
-            tide_bits.append(f"high {next_high.time.strftime('%a %H:%M')}")
-        if next_low is not None:
-            tide_bits.append(f"low {next_low.time.strftime('%a %H:%M')}")
+        # Whichever of high/low comes first tells us the current trend: if the
+        # next event is a high, the water is rising toward it right now, and
+        # vice versa. List both in chronological order, not high-then-low.
+        trend_arrow = "↑" if tide_events and tide_events[0].kind == "high" else "↓" if tide_events else ""
+        next_events = sorted([e for e in (next_high, next_low) if e is not None], key=lambda e: e.time)
+        tide_bits = [f"{e.kind} {e.time.strftime('%a %H:%M')}" for e in next_events]
         if tide_bits:
-            live_bits.append(f"Next tide ({TIDE_STATION_NAME}): {' · '.join(tide_bits)}")
+            live_bits.append(f"Next tide ({TIDE_STATION_NAME}) {trend_arrow}: {' · '.join(tide_bits)}")
     if live_bits:
         st.caption(" · ".join(live_bits))
 
@@ -490,7 +520,7 @@ else:
                     <div class="tierlabel" style="color:{s['color']};">{s['tier']}</div>
                     <div class="num">{best['peak_score']:.0f}</div>
                     <div class="sub">{fmt_day(best['start'].date())} &middot; {fmt_range(best['start'], best['end'])}</div>
-                    <div class="sub">{best['wind_kn']:.0f} kn &middot; {compass(best['dir_deg'])} &middot; {best['hours']:.0f}h in a row</div>
+                    <div class="sub">{best['wind_kn']:.0f} kn &middot; {dir_label(best['dir_deg'])} &middot; {best['hours']:.0f}h in a row</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -549,7 +579,8 @@ else:
             table = windows.copy()
             table["day"] = table["start"].apply(lambda t: fmt_day(t.date()))
             table["window"] = table.apply(lambda r: fmt_range(r["start"], r["end"]), axis=1)
-            table["direction"] = table["dir_deg"].apply(compass)
+            table["direction"] = table["dir_deg"].apply(dir_label)
+            table["confidence"] = table["confidence"].apply(confidence_label)
             st.dataframe(
                 table[["day", "window", "hours", "peak_score", "avg_score", "wind_kn", "direction", "confidence"]],
                 column_config={
@@ -567,12 +598,16 @@ else:
             )
 
     with st.expander("Full hourly data", expanded=False):
+        hourly_table = spot_df.copy()
+        hourly_table["direction"] = hourly_table["dir_deg"].apply(dir_label)
+        hourly_table["confidence"] = hourly_table["confidence"].apply(confidence_label)
         st.dataframe(
-            spot_df[["time", "score", "wind_kn", "gust_kn", "gust_ratio", "dir_deg", "precip_mm", "wave_m", "model_spread_kn", "confidence"]],
+            hourly_table[["time", "score", "wind_kn", "gust_kn", "gust_ratio", "direction", "precip_mm", "wave_m", "model_spread_kn", "confidence"]],
             column_config={
                 "time": st.column_config.DatetimeColumn("Time", format="ddd D MMM HH:mm"),
                 "score": st.column_config.ProgressColumn("Score", min_value=0, max_value=100, format="%.0f"),
                 "gust_ratio": st.column_config.NumberColumn("Gust ratio", format="%.2f"),
+                "direction": "Direction",
                 "model_spread_kn": st.column_config.NumberColumn("Model spread (kn)", format="%.1f"),
                 "confidence": st.column_config.TextColumn("Model agreement"),
             },
@@ -597,9 +632,5 @@ else:
             )
 
     statuses = model_status.get(spot.id, {})
-    ok = [m for m, up in statuses.items() if up]
-    down = [m for m, up in statuses.items() if not up]
-    status_line = f"Active models: {', '.join(ok) if ok else 'none'}"
-    if down:
-        status_line += f" · down: {', '.join(down)}"
-    st.caption(status_line)
+    status_line = "  ".join(f"{'✓' if up else '✕'} {m}" for m, up in statuses.items())
+    st.caption(status_line or "No model status available")
