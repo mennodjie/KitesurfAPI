@@ -28,6 +28,19 @@ st.html(
     unsafe_allow_javascript=True,
 )
 
+# Best-effort PWA metadata for Android "Add to Home Screen" / TWA packaging tools
+# (e.g. PWABuilder). Streamlit doesn't expose its <head>, so this isn't guaranteed
+# to be picked up by every tool -- but it's harmless, and the manifest/icons are
+# genuinely served (enableStaticServing in .streamlit/config.toml) at these URLs
+# regardless, so they can be entered manually wherever a tool needs them pasted in.
+st.html(
+    """
+    <link rel="manifest" href="/app/static/manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="/app/static/icon-192.png">
+    """,
+)
+
 COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
 WATER_LABEL = {True: "Zee", False: "Binnenwater"}
 NL_WEEKDAYS = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"]
