@@ -42,6 +42,13 @@ st.html(
     <link rel="manifest" href="/app/static/manifest.json">
     <meta name="theme-color" content="#0f172a">
     <link rel="apple-touch-icon" href="/app/static/icon-192.png">
+        <script>
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/app/static/sw.js').catch(() => {});
+                });
+            }
+        </script>
     """,
 )
 
