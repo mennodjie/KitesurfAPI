@@ -212,6 +212,79 @@ h2 {
   font-size: 0.82rem;
 }
 
+.clickable {
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+.clickable:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+.back-btn {
+  background: none;
+  border: 1px solid var(--card-border);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  margin-bottom: 0.8rem;
+}
+
+#spotDetailView h3 {
+  margin: 1.2rem 0 0.5rem 0;
+  font-size: 1rem;
+}
+
+.detail-windows {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.8rem;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.detail-table th,
+.detail-table td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--card-border);
+  white-space: nowrap;
+}
+
+.detail-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.tide-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.tide-list li {
+  margin: 0.2rem 0;
+}
+
 .install-btn {
   border: none;
   border-radius: 999px;
