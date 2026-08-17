@@ -55,6 +55,11 @@ def pwa_service_worker():
     return FileResponse(PWA_DIR / "service-worker.js", media_type="application/javascript")
 
 
+@app.api_route("/sw.js", methods=["GET", "HEAD"], include_in_schema=False)
+def pwa_service_worker_alias():
+    return FileResponse(PWA_DIR / "service-worker.js", media_type="application/javascript")
+
+
 @app.api_route("/offline.html", methods=["GET", "HEAD"], include_in_schema=False)
 def pwa_offline():
     return FileResponse(PWA_DIR / "offline.html")
