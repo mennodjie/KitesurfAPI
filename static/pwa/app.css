@@ -87,11 +87,54 @@ h1 {
   backdrop-filter: blur(8px);
 }
 
+.controls-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
 .controls {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 0.8rem;
+}
+
+.controls-hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+#riderWeight {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 0.4rem 0.6rem;
+  width: 5rem;
+}
+
+.day-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.day-pill {
+  border: 1px solid var(--card-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.day-pill.active {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  color: #041523;
+  font-weight: 700;
+  border-color: transparent;
 }
 
 .section-head {
@@ -151,6 +194,22 @@ h2 {
 .session-score {
   color: var(--text);
   font-weight: 700;
+}
+
+.session-extra {
+  font-size: 0.82rem;
+}
+
+.spot-models {
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  opacity: 0.75;
+}
+
+.spot-obs,
+.spot-tide,
+.spot-accuracy {
+  font-size: 0.82rem;
 }
 
 .install-btn {

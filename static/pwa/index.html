@@ -40,10 +40,18 @@
     </header>
 
     <main>
-      <section class="controls card">
-        <label for="minScore">Minimum score</label>
-        <input id="minScore" type="range" min="0" max="100" value="75" />
-        <output id="minScoreValue">75</output>
+      <section class="card controls-card">
+        <div class="controls">
+          <label for="minScore">Minimum score</label>
+          <input id="minScore" type="range" min="0" max="100" value="75" />
+          <output id="minScoreValue">75</output>
+        </div>
+        <div class="controls">
+          <label for="riderWeight">Your weight (kg)</label>
+          <input id="riderWeight" type="number" min="30" max="150" step="1" value="73" />
+          <span class="controls-hint">for kite-size suggestion</span>
+        </div>
+        <div id="dayFilter" class="day-filter"></div>
       </section>
 
       <section class="card">
@@ -66,6 +74,7 @@
         <h3 class="session-spot"></h3>
         <p class="session-meta"></p>
         <p class="session-score"></p>
+        <p class="session-extra"></p>
       </article>
     </template>
 
