@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KiteScout PWA</title>
+    <meta
+      name="description"
+      content="Wind-consensus forecast and session windows for kitesurf spots in Noord-Holland and Flevoland."
+    />
+    <meta name="theme-color" content="#0d1b2a" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/pwa-assets/icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <div class="bg-shape bg-shape-a"></div>
+    <div class="bg-shape bg-shape-b"></div>
+
+    <header class="hero">
+      <div>
+        <p class="kicker">KiteScout</p>
+        <h1>Find your next ride window</h1>
+        <p class="subtitle">
+          Progressive Web App backed by your FastAPI forecast engine.
+        </p>
+      </div>
+      <button id="installBtn" class="install-btn" hidden>Install App</button>
+    </header>
+
+    <main>
+      <section class="controls card">
+        <label for="minScore">Minimum score</label>
+        <input id="minScore" type="range" min="0" max="100" value="75" />
+        <output id="minScoreValue">75</output>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>Top Sessions</h2>
+          <p id="statusText">Loading forecast data...</p>
+        </div>
+        <div id="topSessions" class="session-grid"></div>
+      </section>
+
+      <section class="card">
+        <h2>All Spots</h2>
+        <div id="spotsGrid" class="spots-grid"></div>
+      </section>
+    </main>
+
+    <template id="sessionTemplate">
+      <article class="session-card">
+        <p class="session-rank"></p>
+        <h3 class="session-spot"></h3>
+        <p class="session-meta"></p>
+        <p class="session-score"></p>
+      </article>
+    </template>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

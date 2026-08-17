@@ -1,0 +1,43 @@
+{
+  "id": "/",
+  "name": "KiteScout",
+  "short_name": "KiteScout",
+  "description": "Wind-consensus forecast and good-window alerts for kitesurf sessions.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#081220",
+  "theme_color": "#0d1b2a",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["sports", "weather"],
+  "icons": [
+    {
+      "src": "/pwa-assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-assets/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/pwa-assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ]
+}

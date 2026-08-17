@@ -126,6 +126,14 @@ sources when relevant:
 uvicorn kitesurf.api.main:app --reload
 ```
 
+The API server now also serves a standalone installable PWA at the root URL.
+When running the command above, open `http://localhost:8000/` for the PWA UI.
+It uses:
+
+- root `manifest.json`
+- root `service-worker.js`
+- API endpoints (`/spots`, `/forecast/{spot_id}`)
+
 - `GET /spots`
 - `GET /forecast/{spot_id}`
 - `GET /recommendations?limit=5`
