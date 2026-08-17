@@ -138,6 +138,23 @@ It uses:
 - `GET /forecast/{spot_id}`
 - `GET /recommendations?limit=5`
 
+## Deploy the Installable PWA
+
+The Streamlit deployment is convenient for the dashboard, but PWABuilder checks
+work best on the FastAPI-hosted PWA endpoint in this repo.
+
+Use Render:
+
+1. Push this repo to GitHub (already done).
+2. In Render, create a new Blueprint and select this repository.
+3. Render auto-detects `render.yaml` and deploys `uvicorn kitesurf.api.main:app`.
+4. Use the Render app URL in PWABuilder.
+
+PWABuilder should then detect:
+
+- `https://<your-render-domain>/manifest.json`
+- `https://<your-render-domain>/service-worker.js`
+
 ## Tests
 
 ```bash
