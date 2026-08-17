@@ -25,37 +25,37 @@ STATIC_DIR = ROOT_DIR / "static"
 app.mount("/pwa-assets", StaticFiles(directory=STATIC_DIR), name="pwa-assets")
 
 
-@app.get("/", include_in_schema=False)
+@app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
 def pwa_index():
     return FileResponse(PWA_DIR / "index.html")
 
 
-@app.get("/app", include_in_schema=False)
+@app.api_route("/app", methods=["GET", "HEAD"], include_in_schema=False)
 def pwa_index_alias():
     return FileResponse(PWA_DIR / "index.html")
 
 
-@app.get("/app.css", include_in_schema=False)
+@app.api_route("/app.css", methods=["GET", "HEAD"], include_in_schema=False)
 def pwa_css():
     return FileResponse(PWA_DIR / "app.css", media_type="text/css")
 
 
-@app.get("/app.js", include_in_schema=False)
+@app.api_route("/app.js", methods=["GET", "HEAD"], include_in_schema=False)
 def pwa_js():
     return FileResponse(PWA_DIR / "app.js", media_type="application/javascript")
 
 
-@app.get("/manifest.json", include_in_schema=False)
+@app.api_route("/manifest.json", methods=["GET", "HEAD"], include_in_schema=False)
 def pwa_manifest():
     return FileResponse(PWA_DIR / "manifest.json", media_type="application/manifest+json")
 
 
-@app.get("/service-worker.js", include_in_schema=False)
+@app.api_route("/service-worker.js", methods=["GET", "HEAD"], include_in_schema=False)
 def pwa_service_worker():
     return FileResponse(PWA_DIR / "service-worker.js", media_type="application/javascript")
 
 
-@app.get("/offline.html", include_in_schema=False)
+@app.api_route("/offline.html", methods=["GET", "HEAD"], include_in_schema=False)
 def pwa_offline():
     return FileResponse(PWA_DIR / "offline.html")
 
