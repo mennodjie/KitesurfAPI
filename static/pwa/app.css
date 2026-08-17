@@ -6,6 +6,10 @@
   --muted: #99b6d8;
   --accent: #28d7b4;
   --accent-2: #58a6ff;
+  --tier-go: #34d399;
+  --tier-promising: #fbbf24;
+  --tier-marginal: #94a3b8;
+  --tier-skip: #5b6b83;
 }
 
 * {
@@ -36,6 +40,7 @@ body {
   background: #14b8a6;
   top: -60px;
   right: -40px;
+  animation: drift-a 16s ease-in-out infinite alternate;
 }
 
 .bg-shape-b {
@@ -44,6 +49,29 @@ body {
   background: #3b82f6;
   left: -140px;
   bottom: -100px;
+  animation: drift-b 20s ease-in-out infinite alternate;
+}
+
+@keyframes drift-a {
+  from {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.2;
+  }
+  to {
+    transform: translate(-30px, 40px) scale(1.15);
+    opacity: 0.3;
+  }
+}
+
+@keyframes drift-b {
+  from {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.2;
+  }
+  to {
+    transform: translate(40px, -30px) scale(1.1);
+    opacity: 0.28;
+  }
 }
 
 main {
@@ -194,6 +222,23 @@ h2 {
 .session-score {
   color: var(--text);
   font-weight: 700;
+  font-size: 1.3rem;
+}
+
+.tier-go {
+  color: var(--tier-go);
+}
+
+.tier-promising {
+  color: var(--tier-promising);
+}
+
+.tier-marginal {
+  color: var(--tier-marginal);
+}
+
+.tier-skip {
+  color: var(--tier-skip);
 }
 
 .session-extra {
@@ -266,6 +311,29 @@ h2 {
   font-weight: 600;
 }
 
+.wind-bar-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 9rem;
+}
+
+.wind-bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 4px;
+  opacity: 0.35;
+  z-index: 0;
+}
+
+.wind-bar-label {
+  position: relative;
+  z-index: 1;
+  padding-left: 0.3rem;
+}
+
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -293,6 +361,30 @@ h2 {
   font-weight: 700;
   cursor: pointer;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+
+.skeleton-card {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.8rem;
+  height: 6.5rem;
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.04) 30%,
+    rgba(255, 255, 255, 0.09) 50%,
+    rgba(255, 255, 255, 0.04) 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
 }
 
 @keyframes reveal {

@@ -61,6 +61,22 @@ function scoreTier(score) {
   return "SKIP";
 }
 
+function tierClass(score) {
+  return `tier-${scoreTier(score).toLowerCase()}`;
+}
+
+const MAX_WIND_BAR_KN = 35;
+
+function windBarHtml(windKn, score, labelHtml) {
+  const pct = Math.max(0, Math.min(100, ((windKn ?? 0) / MAX_WIND_BAR_KN) * 100));
+  return `
+    <div class="wind-bar-track">
+      <div class="wind-bar-fill ${tierClass(score)}" style="width:${pct}%; background:currentColor;"></div>
+      <span class="wind-bar-label">${labelHtml}</span>
+    </div>
+  `;
+}
+
 function formatTime(iso) {
   return new Date(iso).toLocaleString([], {
     weekday: "short",
@@ -180,11 +196,15 @@ function renderTopSessions() {
 
   ranked.forEach((w, i) => {
     const node = sessionTemplate.content.firstElementChild.cloneNode(true);
-    node.querySelector(".session-rank").textContent = `#${i + 1} ${scoreTier(w.peak_score)}`;
+    const rankEl = node.querySelector(".session-rank");
+    rankEl.textContent = `#${i + 1} ${scoreTier(w.peak_score)}`;
+    rankEl.classList.add(tierClass(w.peak_score));
     node.querySelector(".session-spot").textContent = w.name;
     node.querySelector(".session-meta").textContent =
       `${formatRange(w.start, w.end)} · ${Math.round(w.wind_kn)} kn ${dirLabel(w.dir_deg)} · ${w.hours}h`;
-    node.querySelector(".session-score").textContent = `Score ${Math.round(w.peak_score)}`;
+    const scoreEl = node.querySelector(".session-score");
+    scoreEl.textContent = `Score ${Math.round(w.peak_score)}`;
+    scoreEl.classList.add(tierClass(w.peak_score));
     node.querySelector(".session-extra").textContent =
       `${confidenceLabel(w.confidence)}${w.kite_m ? ` · Kite ${w.kite_m}m` : ""}`;
     node.classList.add("clickable");
@@ -228,19 +248,20 @@ function renderSpots() {
       accuracyHtml = `<p class="spot-accuracy">Nowcast avg error: ${acc.mean_wind_error_kn} kn (${acc.samples} samples)</p>`;
     }
 
+    const waterIcon = spot.is_coastal ? "🌊" : "💧";
+    const bestHtml = best
+      ? `Best score <span class="${tierClass(best.score)}" style="font-weight:700">${Math.round(best.score)}</span> · ${dirLabel(best.wind_direction_deg)} at ${formatTime(best.time)}${
+          best.kite_m ? ` · Kite ${best.kite_m}m` : ""
+        }`
+      : "No forecast data for this day";
+
     const card = document.createElement("article");
     card.className = "spot-card clickable";
     card.innerHTML = `
       <h3>${spot.name}</h3>
-      <p>${spot.water_body}</p>
+      <p>${waterIcon} ${spot.water_body}</p>
       <p class="spot-models">${modelStatus}</p>
-      <p>${
-        best
-          ? `Best score ${Math.round(best.score)} · ${dirLabel(best.wind_direction_deg)} at ${formatTime(best.time)}${
-              best.kite_m ? ` · Kite ${best.kite_m}m` : ""
-            }`
-          : "No forecast data for this day"
-      }</p>
+      <p>${bestHtml}</p>
       ${obsHtml}
       ${tideHtml}
       ${accuracyHtml}
@@ -260,7 +281,7 @@ function renderSpotDetail(spotId) {
   }
 
   detailNameEl.textContent = detail.name;
-  detailWaterBodyEl.textContent = detail.water_body;
+  detailWaterBodyEl.textContent = `${detail.is_coastal ? "🌊" : "💧"} ${detail.water_body}`;
   detailModelStatusEl.textContent = Object.entries(detail.model_status)
     .map(([model, up]) => `${up ? "✓" : "✕"} ${model}`)
     .join("  ");
@@ -280,9 +301,9 @@ function renderSpotDetail(spotId) {
       const row = document.createElement("article");
       row.className = "session-card";
       row.innerHTML = `
-        <p class="session-rank">${scoreTier(w.peak_score)}</p>
+        <p class="session-rank ${tierClass(w.peak_score)}">${scoreTier(w.peak_score)}</p>
         <p class="session-meta">${formatRange(w.start, w.end)} · ${Math.round(w.wind_kn)} kn ${dirLabel(w.dir_deg)} · ${w.hours}h</p>
-        <p class="session-score">Peak ${Math.round(w.peak_score)} · Avg ${Math.round(w.avg_score)}</p>
+        <p class="session-score ${tierClass(w.peak_score)}">Peak ${Math.round(w.peak_score)} · Avg ${Math.round(w.avg_score)}</p>
         <p class="session-extra">${confidenceLabel(w.confidence)}${w.kite_m ? ` · Kite ${w.kite_m}m` : ""}</p>
       `;
       detailWindowsEl.appendChild(row);
@@ -295,8 +316,8 @@ function renderSpotDetail(spotId) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${formatTime(h.time)}</td>
-      <td>${Math.round(h.score)}</td>
-      <td>${h.wind_speed_kn ?? "–"} kn ${dirLabel(h.wind_direction_deg)}</td>
+      <td class="${tierClass(h.score)}" style="font-weight:700">${Math.round(h.score)}</td>
+      <td>${windBarHtml(h.wind_speed_kn, h.score, `${h.wind_speed_kn ?? "–"} kn ${dirLabel(h.wind_direction_deg)}`)}</td>
       <td>${h.wind_gust_kn ?? "–"} kn</td>
       <td>${confidenceLabel(h.confidence)}</td>
       <td>${h.kite_m ? `${h.kite_m}m` : "–"}</td>
@@ -351,7 +372,23 @@ function currentSpotIdFromHash() {
   return match ? match[1] : null;
 }
 
+function renderSkeletons() {
+  topSessionsEl.replaceChildren();
+  spotsGridEl.replaceChildren();
+  for (let i = 0; i < 4; i++) {
+    const s = document.createElement("div");
+    s.className = "skeleton-card";
+    topSessionsEl.appendChild(s);
+  }
+  for (let i = 0; i < 6; i++) {
+    const s = document.createElement("div");
+    s.className = "skeleton-card";
+    spotsGridEl.appendChild(s);
+  }
+}
+
 async function loadAll() {
+  renderSkeletons();
   statusTextEl.textContent = "Loading spots...";
   spotsMeta = await fetchJson("/spots");
 
