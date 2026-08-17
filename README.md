@@ -120,41 +120,6 @@ sources when relevant:
   doesn't do. Each spot's detail view shows a running average once it
   has 5+ logged samples.
 
-## Run it (API)
-
-```bash
-uvicorn kitesurf.api.main:app --reload
-```
-
-The API server now also serves a standalone installable PWA at the root URL.
-When running the command above, open `http://localhost:8000/` for the PWA UI.
-It uses:
-
-- root `manifest.json`
-- root `service-worker.js`
-- API endpoints (`/spots`, `/forecast/{spot_id}`)
-
-- `GET /spots`
-- `GET /forecast/{spot_id}`
-- `GET /recommendations?limit=5`
-
-## Deploy the Installable PWA
-
-The Streamlit deployment is convenient for the dashboard, but PWABuilder checks
-work best on the FastAPI-hosted PWA endpoint in this repo.
-
-Use Render:
-
-1. Push this repo to GitHub (already done).
-2. In Render, create a new Blueprint and select this repository.
-3. Render auto-detects `render.yaml` and deploys `uvicorn kitesurf.api.main:app`.
-4. Use the Render app URL in PWABuilder.
-
-PWABuilder should then detect:
-
-- `https://<your-render-domain>/manifest.json`
-- `https://<your-render-domain>/service-worker.js`
-
 ## Tests
 
 ```bash
@@ -181,5 +146,5 @@ Repo is public, so anyone can open a pull request. To add a spot, add
 one `Spot(...)` entry to the `SPOTS` list in `kitesurf/spots.py` with
 its coordinates, water body, `is_coastal` flag (True only for open
 North Sea, for marine wave data), and a `good_wind_dir` range tuned to
-that spot's shoreline orientation. No other code changes needed — both
-the API and Streamlit UI pick up new spots automatically.
+that spot's shoreline orientation. No other code changes needed — the
+Streamlit UI picks up new spots automatically.
