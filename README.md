@@ -54,9 +54,10 @@ browser tab can't reliably push notifications on its own. Instead,
 a free GitHub Actions cron job checks the forecast every 3 hours and
 pushes via [ntfy.sh](https://ntfy.sh) (no account needed — just an
 Android app and a topic name) whenever a spot gets a new **3+ hour
-GO window (score ≥75) starting within the next 3 days**. Already-sent
-alerts are deduplicated via `data/alert_state.json`, committed back to
-the repo by the workflow.
+GO window (score ≥75) starting within the next 3 days**, restricted to
+daylight hours (07:00-21:00) so a window that only exists overnight
+doesn't page anyone. Already-sent alerts are deduplicated via
+`data/alert_state.json`, committed back to the repo by the workflow.
 
 Setup:
 
@@ -76,21 +77,6 @@ Run it locally without waiting for the schedule:
 ```bash
 NTFY_TOPIC=your-topic-name python scripts/check_alerts.py
 ```
-
-### Email (optional, alongside or instead of push)
-
-Set these as repository secrets and the workflow will also send a
-plain-text email digest (one email per run, listing every new alert)
-via SMTP:
-
-- `SMTP_HOST`, `SMTP_PORT` (defaults to 587)
-- `SMTP_USERNAME`, `SMTP_PASSWORD`
-- `NOTIFICATION_FROM`, `NOTIFICATION_TO`
-
-Works with any SMTP provider. For Gmail: use smtp.gmail.com, port 587,
-and a Google Account [App Password](https://myaccount.google.com/apppasswords)
-as `SMTP_PASSWORD` (not your normal password — Gmail requires 2FA to be
-on and an app password for third-party SMTP).
 
 ## Extra data sources
 

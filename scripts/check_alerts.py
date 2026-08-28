@@ -1,4 +1,4 @@
-"""Checks all spots for upcoming good windows and notifies via ntfy.sh and/or email.
+"""Checks all spots for upcoming good windows and pushes a notification via ntfy.sh.
 
 Run manually with: python scripts/check_alerts.py
 Runs on a schedule via .github/workflows/wind-alert.yml.
@@ -15,7 +15,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from kitesurf.alerts import find_new_alerts
-from kitesurf.notify import NTFY_TOPIC, email_configured, send_email_digest, send_ntfy
+from kitesurf.notify import NTFY_TOPIC, send_ntfy
 from kitesurf.scoring import score_hour
 from kitesurf.spots import SPOTS
 from kitesurf.weather import get_forecasts
@@ -25,6 +25,11 @@ THRESHOLD = float(os.environ.get("ALERT_SCORE_THRESHOLD", "75"))
 WITHIN_DAYS = int(os.environ.get("ALERT_WITHIN_DAYS", "3"))
 MIN_HOURS = int(os.environ.get("ALERT_MIN_HOURS", "3"))
 STATE_PATH = Path(__file__).resolve().parent.parent / "data" / "alert_state.json"
+
+# Matches the Streamlit app's "Daytime only" filter -- nobody's going out at 3am,
+# so a window that only exists overnight shouldn't page anyone.
+DAYLIGHT_START_HOUR = 7
+DAYLIGHT_END_HOUR = 21
 
 
 def amsterdam_now() -> pd.Timestamp:
@@ -46,7 +51,7 @@ def save_state(notified: set) -> None:
 
 
 def send_test_notification() -> None:
-    """Sends one synthetic alert through both channels -- ignores real forecast data and dedupe state."""
+    """Sends one synthetic alert via ntfy -- ignores real forecast data and dedupe state."""
     now = amsterdam_now()
     alert = {
         "key": "test|" + now.isoformat(),
@@ -59,17 +64,13 @@ def send_test_notification() -> None:
         "dir_deg": 270,
         "hours": 3,
     }
-    if not NTFY_TOPIC and not email_configured():
-        print("Neither NTFY_TOPIC nor SMTP_*/NOTIFICATION_* are configured -- nothing to send.")
+    if not NTFY_TOPIC:
+        print("NTFY_TOPIC is not configured -- nothing to send.")
         return
 
-    if NTFY_TOPIC:
-        print("Sending test push via ntfy...")
-        send_ntfy(alert)
-    if email_configured():
-        print("Sending test email digest...")
-        send_email_digest([alert])
-    print("Done. Check your phone/inbox. This did not touch data/alert_state.json.")
+    print("Sending test push via ntfy...")
+    send_ntfy(alert)
+    print("Done. Check your phone. This did not touch data/alert_state.json.")
 
 
 async def main() -> None:
@@ -91,6 +92,9 @@ async def main() -> None:
             for h in forecasts[spot.id].hours
         ]
         spot_df = pd.DataFrame(rows)
+        spot_df = spot_df[
+            (spot_df["time"].dt.hour >= DAYLIGHT_START_HOUR) & (spot_df["time"].dt.hour <= DAYLIGHT_END_HOUR)
+        ]
         windows_by_spot[spot.id] = compute_good_windows(spot_df, threshold=THRESHOLD, min_hours=MIN_HOURS)
 
     notified = load_state()
@@ -98,15 +102,13 @@ async def main() -> None:
     spot_names = {s.id: s.name for s in SPOTS}
     alerts = find_new_alerts(windows_by_spot, spot_names, THRESHOLD, WITHIN_DAYS, notified, now)
 
-    if alerts and not NTFY_TOPIC and not email_configured():
-        print("No notification channel configured (NTFY_TOPIC / SMTP_* + NOTIFICATION_*) -- would have alerted:")
+    if alerts and not NTFY_TOPIC:
+        print("NTFY_TOPIC is not configured -- would have alerted:")
 
     for alert in alerts:
         send_ntfy(alert)
         notified.add(alert["key"])
         print(f"Alerted: {alert['key']}")
-
-    send_email_digest(alerts)
 
     if not alerts:
         print("No new qualifying windows.")

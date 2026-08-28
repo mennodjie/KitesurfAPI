@@ -28,12 +28,6 @@ jobs:
       - run: python scripts/check_alerts.py
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          NOTIFICATION_FROM: ${{ secrets.NOTIFICATION_FROM }}
-          NOTIFICATION_TO: ${{ secrets.NOTIFICATION_TO }}
           ALERT_SCORE_THRESHOLD: "75"
           ALERT_WITHIN_DAYS: "3"
           ALERT_MIN_HOURS: "3"
