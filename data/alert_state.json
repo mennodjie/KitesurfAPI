@@ -1,19 +1,30 @@
 {
   "notified": [
     "ijmuiden|2026-09-03T12:00:00",
+    "ijmuiden|2026-09-03T13:00:00",
     "ijmuiden|2026-09-04T07:00:00",
     "ijmuiden|2026-09-04T08:00:00",
+    "ijmuiden|2026-09-04T11:00:00",
     "ijmuiden|2026-09-04T16:00:00",
+    "ijmuiden|2026-09-04T18:00:00",
+    "schellinkhout|2026-09-03T10:00:00",
     "schellinkhout|2026-09-03T11:00:00",
     "schellinkhout|2026-09-03T13:00:00",
     "schellinkhout|2026-09-03T14:00:00",
     "schellinkhout|2026-09-04T07:00:00",
     "schellinkhout|2026-09-04T08:00:00",
+    "schellinkhout|2026-09-04T11:00:00",
+    "schellinkhout|2026-09-04T16:00:00",
     "strand-horst|2026-09-04T11:00:00",
+    "strand-horst|2026-09-04T12:00:00",
+    "wijk-aan-zee|2026-09-03T10:00:00",
     "wijk-aan-zee|2026-09-03T11:00:00",
     "wijk-aan-zee|2026-09-03T12:00:00",
     "wijk-aan-zee|2026-09-04T07:00:00",
+    "wijk-aan-zee|2026-09-04T11:00:00",
     "zandvoort|2026-09-03T12:00:00",
-    "zandvoort|2026-09-04T07:00:00"
+    "zandvoort|2026-09-03T13:00:00",
+    "zandvoort|2026-09-04T07:00:00",
+    "zandvoort|2026-09-04T10:00:00"
   ]
 }
