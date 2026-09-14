@@ -961,3 +961,9 @@
 {"timestamp": "2026-09-14T01:00:00", "spot_id": "ijmuiden", "forecast_wind_kn": 3.1, "observed_wind_kn": 4.7, "forecast_dir_deg": 90.0, "observed_dir_deg": 91}
 {"timestamp": "2026-09-14T01:00:00", "spot_id": "wijk-aan-zee", "forecast_wind_kn": 3.4, "observed_wind_kn": 4.7, "forecast_dir_deg": 93.0, "observed_dir_deg": 91}
 {"timestamp": "2026-09-14T01:00:00", "spot_id": "zandvoort", "forecast_wind_kn": 2.9, "observed_wind_kn": 4.7, "forecast_dir_deg": 100.0, "observed_dir_deg": 91}
+{"timestamp": "2026-09-14T06:00:00", "spot_id": "muiderberg", "forecast_wind_kn": 3.5, "observed_wind_kn": 3.5, "forecast_dir_deg": 117.5, "observed_dir_deg": 90}
+{"timestamp": "2026-09-14T06:00:00", "spot_id": "strand-horst", "forecast_wind_kn": 3.0, "observed_wind_kn": 3.5, "forecast_dir_deg": 118.0, "observed_dir_deg": 66}
+{"timestamp": "2026-09-14T06:00:00", "spot_id": "schellinkhout", "forecast_wind_kn": 4.3, "observed_wind_kn": 6.2, "forecast_dir_deg": 140.0, "observed_dir_deg": 119}
+{"timestamp": "2026-09-14T06:00:00", "spot_id": "ijmuiden", "forecast_wind_kn": 3.8, "observed_wind_kn": 5.1, "forecast_dir_deg": 120.0, "observed_dir_deg": 111}
+{"timestamp": "2026-09-14T06:00:00", "spot_id": "wijk-aan-zee", "forecast_wind_kn": 4.0, "observed_wind_kn": 5.1, "forecast_dir_deg": 123.5, "observed_dir_deg": 111}
+{"timestamp": "2026-09-14T06:00:00", "spot_id": "zandvoort", "forecast_wind_kn": 3.8, "observed_wind_kn": 5.1, "forecast_dir_deg": 121.0, "observed_dir_deg": 111}
