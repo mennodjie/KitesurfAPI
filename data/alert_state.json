@@ -2,9 +2,14 @@
   "notified": [
     "ijmuiden|2026-11-15T19:00:00",
     "ijmuiden|2026-11-16T12:00:00",
+    "ijmuiden|2026-11-17T12:00:00",
     "schellinkhout|2026-11-15T11:00:00",
     "schellinkhout|2026-11-15T19:00:00",
+    "schellinkhout|2026-11-17T13:00:00",
+    "strand-horst|2026-11-17T14:00:00",
     "wijk-aan-zee|2026-11-15T19:00:00",
-    "zandvoort|2026-11-16T12:00:00"
+    "wijk-aan-zee|2026-11-17T12:00:00",
+    "zandvoort|2026-11-16T12:00:00",
+    "zandvoort|2026-11-17T12:00:00"
   ]
 }
